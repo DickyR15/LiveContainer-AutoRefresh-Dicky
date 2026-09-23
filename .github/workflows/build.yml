@@ -92,7 +92,7 @@ jobs:
           git -C work/EmbeddedSideStore checkout --detach "$EMBEDDED_SIDESTORE_REF"
           git -C work/EmbeddedSideStore submodule update --init --recursive --depth=1
 
-      - name: Apply host patches
+      - name: Apply host auto-refresh patch
         shell: bash
         run: |
           set -euo pipefail
@@ -100,16 +100,6 @@ jobs:
           python3 builder/scripts/patch_livecontainer_autorefresh.py work/LiveContainer
           python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
-          python3 builder/scripts/patch_guest_return.py work/LiveContainer
-          python3 builder/scripts/patch_guest_return.py work/LiveContainer
-          python3 builder/scripts/patch_multitask_dock.py work/LiveContainer
-          python3 builder/scripts/patch_multitask_dock.py work/LiveContainer
-          python3 builder/scripts/patch_v3_unified_shell.py work/LiveContainer work/EmbeddedSideStore
-          python3 builder/scripts/patch_v3_unified_shell.py work/LiveContainer work/EmbeddedSideStore
-          python3 builder/scripts/patch_v3_service.py work/LiveContainer work/EmbeddedSideStore
-          python3 builder/scripts/patch_v3_service.py work/LiveContainer work/EmbeddedSideStore
-          swiftc -frontend -parse work/LiveContainer/MultitaskSupport/MultitaskAppWindow.swift
-          swiftc -frontend -parse work/LiveContainer/MultitaskSupport/MultitaskDockView.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist

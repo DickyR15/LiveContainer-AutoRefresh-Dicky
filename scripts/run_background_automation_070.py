@@ -19,17 +19,13 @@ def install_compat(mod):
     original_die = mod.die
 
     def compat_die(message):
-        # SideStore 0.7.0 cannot expose AuthManager's private session/team.
-        # The optional AUTH_PREFLIGHT diagnostic is intentionally disabled.
         if isinstance(message, str) and message.startswith("background operation verification failed:"):
-            return print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
+            if "AUTH_PREFLIGHT_PASS" in message or "hasPasswordCredentials" in message:
+                return print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
         return original_die(message)
 
     def compat_replace_once(text, old, new, label):
         if label == "background authentication preflight":
-            # Skip this optional diagnostic preflight for SideStore 0.7.0.
-            # It touches private AuthManager session/team state and is not required
-            # for the actual background refresh or CoreDevice transport.
             return text
         if label == "application background reschedule":
             if "func applicationDidEnterBackground" not in text:
@@ -129,7 +125,17 @@ def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else "work/EmbeddedSideStore").resolve()
     mod.patch_app_delegate(root)
     mod.patch_scene_delegate(root)
-    mod.patch_background_operation(root)
+    try:
+        mod.patch_background_operation(root)
+    except SystemExit as exc:
+        message = str(exc)
+        if not (
+            message.startswith("background operation verification failed:")
+            and ("AUTH_PREFLIGHT_PASS" in message or "hasPasswordCredentials" in message)
+        ):
+            raise
+        print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
+
     mod.patch_manual_refresh(root)
     mod.patch_info_plist(root)
     mod.patch_settings(root)

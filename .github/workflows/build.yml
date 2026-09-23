@@ -89,7 +89,9 @@ jobs:
           test "$(git -C work/EmbeddedSideStore/Dependencies/SideSign rev-parse HEAD)" = "$SIDESIGN_REF"
           cp builder/upstream-autorefresh/scripts/*.py builder/
           cp -R builder/upstream-autorefresh/scripts/templates builder/
+          python3 -m py_compile builder/scripts/prepare_background_automation.py
           python3 builder/scripts/prepare_background_automation.py
+          python3 -m py_compile builder/patch_background_automation.py
           cp builder/scripts/adapt_sidestore_070_signing.py builder/adapt_sidestore_070_signing.py
 
       - name: Checkout exact idevice

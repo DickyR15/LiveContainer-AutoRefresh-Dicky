@@ -16,6 +16,7 @@ def main():
     ap.add_argument("--side",type=Path,required=True)
     ap.add_argument("--output",type=Path,required=True)
     a=ap.parse_args()
+    a.output=a.output.resolve()
     root=a.source.resolve()
     payload=root/"Payload"
     if payload.exists(): raise SystemExit("fresh packaging workspace required")

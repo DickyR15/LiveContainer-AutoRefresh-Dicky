@@ -132,48 +132,38 @@ jobs:
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Utils/iostreams/ConsoleLog.swift
 
-      - name: Checkout and patch CoreDevice transport
+      - name: Prepare exact SideStore 0.7.0 integration
         shell: bash
         run: |
           set -euo pipefail
-          source build.env
-          git clone --filter=blob:none https://github.com/SideStore/idevice.git idevice
-          git -C idevice checkout --detach "$IDEVICE_REF"
-          git -C idevice submodule update --init --recursive --depth=1
-          git clone --filter=blob:none https://github.com/SideStore/jktcp.git jktcp
-          git -C jktcp checkout --detach "$JKTCP_REF"
-          python3 builder/scripts/patch_jktcp_reliability.py jktcp
-          python3 builder/scripts/patch_coredevice_idevice.py idevice jktcp
-          cargo fmt --manifest-path jktcp/Cargo.toml
-          cargo fmt --manifest-path idevice/ffi/Cargo.toml
-          git -C jktcp diff --check
-          git -C idevice diff --check
-          cargo test --manifest-path jktcp/Cargo.toml --lib -- --skip tests::local_tcp --skip tests::handle_speed
-          cargo check --manifest-path idevice/ffi/Cargo.toml --features obfuscate
-
-      - name: Build iOS transport framework
-        working-directory: idevice
-        shell: bash
-        run: |
-          set -euo pipefail
-          BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$(xcrun --sdk iphoneos --show-sdk-path)"             IPHONEOS_DEPLOYMENT_TARGET=15.0             cargo build --release --target aarch64-apple-ios --features obfuscate --manifest-path ffi/Cargo.toml
-          test -f target/aarch64-apple-ios/release/libidevice_ffi.a
-          rm -rf swift/IDevice.xcframework
-          cp ffi/idevice.h swift/include/idevice.h
-          xcodebuild -create-xcframework -library target/aarch64-apple-ios/release/libidevice_ffi.a             -headers swift/include -output swift/IDevice.xcframework
-
-      - name: Inject CoreDevice transport
-        shell: bash
-        run: |
-          set -euo pipefail
-          MUX=work/EmbeddedSideStore/Dependencies/minimuxer
+          SIDE=work/EmbeddedSideStore
+          MUX="$SIDE/Dependencies/minimuxer"
           mkdir -p "$MUX/DeviceGateway/LocalBinary"
           rm -rf "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
           cp -R idevice/swift/IDevice.xcframework "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
-          python3 scripts/prepare_coredevice_transport_patch.py
+
+          python3 builder/scripts/adapt_sidestore_070_pairing.py "$MUX"
+          python3 builder/scripts/adapt_sidestore_070_signing.py "$SIDE"
+          python3 builder/scripts/patch_sidestore_integration.py "$MUX" "$SIDE"
+          python3 builder/scripts/patch_background_automation.py "$SIDE"
           python3 builder/scripts/patch_local_idevice_package.py "$MUX"
-          python3 scripts/prepare_coredevice_transport_patch.py --verify-only
+
+          # Idempotence: applying the complete integration twice must not change the result.
+          python3 builder/scripts/adapt_sidestore_070_pairing.py "$MUX"
+          python3 builder/scripts/adapt_sidestore_070_signing.py "$SIDE"
+          python3 builder/scripts/patch_sidestore_integration.py "$MUX" "$SIDE"
+          python3 builder/scripts/patch_background_automation.py "$SIDE"
+          python3 builder/scripts/patch_local_idevice_package.py "$MUX"
+
           git -C "$MUX" diff --check
+          swiftc -frontend -parse "$MUX/DeviceGateway/idevice/IdeviceGateway.swift"
+          swiftc -frontend -parse "$MUX/Common/PairingProtocol.swift"
+          swiftc -frontend -parse "$MUX/Sources/Services/NetworkObserverService.swift"
+          swiftc -frontend -parse "$MUX/Sources/MinimuxerImpl.swift"
+          swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
+          swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
+          swiftc -frontend -parse "$SIDE/AltStore/AppDelegate.swift"
+          swiftc -frontend -parse "$SIDE/AltStore/SceneDelegate.swift"
 
       - name: Build LiveContainer
         shell: bash

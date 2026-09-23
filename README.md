@@ -17,7 +17,8 @@ No pairing files, Apple credentials, certificates, provisioning profiles, or per
 ## Pinned sources
 
 - LiveContainer 3.8.10: `4dbe0f9a626de801184a42c0be8d2cb105058e3d`
-- AutoRefresh builder: v3.0.2, commit `e9c772995cddfcf0b6ae10bd5aa7239e106e817c`
+- AutoRefresh builder: v3.0.2, commit `35c6c28c98e7261afe6049a133a9ae542d666d57`
+- Embedded SideStore: official 2026-09-18 nightly, commit `12a496ca1c766a102193634879823d16610bf1cd`
 
 ## Build
 

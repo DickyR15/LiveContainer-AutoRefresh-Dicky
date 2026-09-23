@@ -4,6 +4,9 @@ import importlib.util
 import sys
 
 UPSTREAM = Path("builder/scripts/patch_combined_transport.py")
+UPSTREAM_DIR = UPSTREAM.parent.resolve()
+if str(UPSTREAM_DIR) not in sys.path:
+    sys.path.insert(0, str(UPSTREAM_DIR))
 MUX = Path("work/EmbeddedSideStore/Dependencies/minimuxer")
 
 def load_focused_module():

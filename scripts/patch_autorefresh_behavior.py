@@ -136,6 +136,12 @@ replace_once(
     "import SwiftUI\nimport Foundation\nimport UIKit\nimport UserNotifications",
     "refresh settings notification imports"
 )
+# AlarmKit is only available on iOS 26.1+; keep the generated settings view parseable on older SDK paths.
+p=T/"livecontainer_refresh_settings.swift"
+s=p.read_text(encoding="utf-8")
+if "import AlarmKit" not in s:
+    s=s.replace("import UserNotifications\n", "import UserNotifications\n#if canImport(AlarmKit)\nimport AlarmKit\n#endif\n", 1)
+p.write_text(s, encoding="utf-8")
 replace_once(
     "livecontainer_refresh_settings.swift",
     '''    @State private var showClearHistoryConfirmation = false

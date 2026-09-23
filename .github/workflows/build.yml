@@ -123,6 +123,9 @@ jobs:
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
+          # AutoRefresh host scheduler depends on this shared model.
+          cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
+          test -s work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist

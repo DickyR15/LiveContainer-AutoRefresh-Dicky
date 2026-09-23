@@ -16,6 +16,14 @@ def load_module():
 
 def install_compat(mod):
     original = mod.replace_once
+    original_die = mod.die
+
+    def compat_die(message):
+        # SideStore 0.7.0 cannot expose AuthManager's private session/team.
+        # The optional AUTH_PREFLIGHT diagnostic is intentionally disabled.
+        if isinstance(message, str) and message.startswith("background operation verification failed:"):
+            return print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
+        return original_die(message)
 
     def compat_replace_once(text, old, new, label):
         if label == "background authentication preflight":

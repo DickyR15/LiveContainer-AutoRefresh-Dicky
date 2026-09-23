@@ -1,4 +1,4 @@
-name: Build LiveContainer AutoRefresh Dicky
+name: Build LiveContainer 3.8.10 AutoRefresh
 
 on:
   workflow_dispatch:
@@ -9,14 +9,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: livecontainer-autorefresh-dicky
+  group: livecontainer-3810-autorefresh
   cancel-in-progress: true
 
 env:
   LIVE_CONTAINER_REF: 4dbe0f9a626de801184a42c0be8d2cb105058e3d
-  AUTO_REFRESH_REF: v3.0.2
-  AUTO_REFRESH_COMMIT: 35c6c28c98e7261afe6049a133a9ae542d666d57
-  EMBEDDED_SIDESTORE_REF: 12a496ca1c766a102193634879823d16610bf1cd
+  SIDESTORE_REF: 12a496ca1c766a102193634879823d16610bf1cd
+  MINIMUXER_REF: 20248550bbe014805460d4fa22ea69f146d338a0
+  SIDESIGN_REF: df2b8e4257454f0c7629276d409d6e9d7953fdf6
+  IDEVICE_REF: ebd7dadfc55d1c4facee3d11ecf5b28e20548b57
+  JKTCP_REF: e674e1eee6d5943e13b1eba0bd24a9dd0b2fa020
+  AUTO_REFRESH_REF: 35c6c28c98e7261afe6049a133a9ae542d666d57
 
 jobs:
   build:
@@ -26,8 +29,10 @@ jobs:
     steps:
       - name: Checkout builder
         uses: actions/checkout@v4
+        with:
+          path: builder
 
-      - name: Checkout official LiveContainer 3.8.10
+      - name: Checkout exact LiveContainer 3.8.10 source
         shell: bash
         run: |
           set -euo pipefail
@@ -38,26 +43,69 @@ jobs:
           test "$(git -C work/LiveContainer rev-parse HEAD)" = "$LIVE_CONTAINER_REF"
           grep -Fq '<string>3.8.10</string>' work/LiveContainer/LiveContainer/Info.plist
 
-      - name: Checkout AutoRefresh v3.0.2
+      - name: Verify uploaded LiveContainer source identity
         shell: bash
         run: |
           set -euo pipefail
-          git clone --filter=blob:none https://github.com/NRG-Wardog/sidestore-auto-refresh.git work/AutoRefresh
-          git -C work/AutoRefresh checkout --detach "$AUTO_REFRESH_REF"
-          test "$(git -C work/AutoRefresh rev-parse HEAD)" = "$AUTO_REFRESH_COMMIT"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          expected = {
+            "LiveContainer/Info.plist":"85e75f51497448242015a90cb201a4c83d86300fbd1adbb59341da74444379f6",
+            "LiveContainerSwiftUI/App/AppDelegate.swift":"5cd7905f98bed0e9f829c57e1d5b2dce75b27bb53a95ffa881fb6f221c8cc43f",
+            "LiveContainer.xcodeproj/project.pbxproj":"4d667ffe93d7a1797dac26a0716825050396fddd16ea3c91d2d4241196926cd9",
+            ".github/build_github.sh":"4a83b9594c13e8f5d2de57433286f7381d4221961bbd4946c0699bcfbaed7e4f",
+          }
+          root=Path("work/LiveContainer")
+          for rel, want in expected.items():
+              got=hashlib.sha256((root/rel).read_bytes()).hexdigest()
+              assert got==want, f"{rel}: source mismatch"
+          print("Uploaded source identity: PASS")
+          PY
 
-      - name: Select Xcode 26.4
-        uses: maxim-lobanov/setup-xcode@v1.6.0
+      - name: Checkout exact SideStore 0.7.0 source
+        uses: actions/checkout@v4
         with:
-          xcode-version: "26.4"
+          repository: LiveContainer/SideStore
+          ref: ${{ env.SIDESTORE_REF }}
+          path: work/EmbeddedSideStore
+          fetch-depth: 1
+          submodules: recursive
 
-      - name: Prepare scripts
+      - name: Checkout exact AutoRefresh source
+        uses: actions/checkout@v4
+        with:
+          repository: NRG-Wardog/sidestore-auto-refresh
+          ref: ${{ env.AUTO_REFRESH_REF }}
+          path: builder/upstream-autorefresh
+          fetch-depth: 1
+
+      - name: Verify SideStore submodules
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p builder/scripts
-          cp work/AutoRefresh/scripts/*.py builder/scripts/
-          cp -R work/AutoRefresh/scripts/templates builder/scripts/templates
+          test "$(git -C work/EmbeddedSideStore rev-parse HEAD)" = "$SIDESTORE_REF"
+          test "$(git -C work/EmbeddedSideStore/Dependencies/minimuxer rev-parse HEAD)" = "$MINIMUXER_REF"
+          test "$(git -C work/EmbeddedSideStore/Dependencies/SideSign rev-parse HEAD)" = "$SIDESIGN_REF"
+          cp builder/upstream-autorefresh/scripts/*.py builder/
+          cp -R builder/upstream-autorefresh/scripts/templates builder/
+
+      - name: Checkout exact idevice
+        uses: actions/checkout@v4
+        with:
+          repository: SideStore/idevice
+          ref: ${{ env.IDEVICE_REF }}
+          path: idevice
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Checkout exact jktcp
+        uses: actions/checkout@v4
+        with:
+          repository: SideStore/jktcp
+          ref: ${{ env.JKTCP_REF }}
+          path: jktcp
+          fetch-depth: 1
 
       - name: Install build tools
         shell: bash
@@ -67,72 +115,55 @@ jobs:
           if ! command -v bindgen >/dev/null 2>&1; then cargo install --locked bindgen-cli --version 0.72.1; fi
           rustup target add aarch64-apple-ios
 
-      - name: Read pinned dependency revisions
+      - name: Apply LiveContainer auto-refresh integration
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import re
-          from pathlib import Path
-          s = Path("work/AutoRefresh/.github/workflows/livecontainer-build.yml").read_text()
-          for key in ("IDEVICE_REF","JKTCP_REF"):
-              m = re.search(rf"{key}:\s*([0-9a-f]{{40}})", s)
-              if not m:
-                  raise SystemExit(f"missing {key}")
-              print(f"{key}={m.group(1)}")
-              Path("build.env").open("a").write(f"{key}={m.group(1)}\n")
-          PY
-          cat build.env
-
-      - name: Checkout embedded SideStore
-        shell: bash
-        run: |
-          set -euo pipefail
-          source build.env
-          git clone --filter=blob:none https://github.com/LiveContainer/SideStore.git work/EmbeddedSideStore
-          git -C work/EmbeddedSideStore checkout --detach "$EMBEDDED_SIDESTORE_REF"
-          test "$(git -C work/EmbeddedSideStore rev-parse HEAD)" = "$EMBEDDED_SIDESTORE_REF"
-          git -C work/EmbeddedSideStore submodule update --init --recursive --depth=1
-
-      - name: Apply host auto-refresh patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 builder/scripts/patch_livecontainer_autorefresh.py work/LiveContainer
-          python3 builder/scripts/patch_livecontainer_autorefresh.py work/LiveContainer
-          # The scheduler references CombinedFailure; keep its allowlisted model in the 3.8.10 target source tree.
-          cp work/AutoRefresh/scripts/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
-          python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
-          python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
+          python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
+          python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
+          python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
+          python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
 
-      - name: Verify exact embedded SideStore baseline
+      - name: Build LiveContainer host
         shell: bash
         run: |
           set -euo pipefail
-          echo "SideStore revision: \$EMBEDDED_SIDESTORE_REF"
-          echo "Minimuxer revision: \$(git -C work/EmbeddedSideStore/Dependencies/minimuxer rev-parse HEAD)"
+          xcodebuild -project work/LiveContainer/LiveContainer.xcodeproj             -scheme LiveContainer -sdk iphoneos -configuration Release             -derivedDataPath "$RUNNER_TEMP/livecontainer-derived-data"             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
-      - name: Apply SideStore background refresh patches
+      - name: Apply CoreDevice idevice patches
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import importlib.util
-          from pathlib import Path
-          spec = importlib.util.spec_from_file_location("background_patch", "builder/scripts/patch_background_automation.py")
-          module = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(module)
-          root = Path("work/EmbeddedSideStore")
-          module.patch_background_operation(root)
-          module.patch_console_log(root)
-          PY
-          swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift
-          swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Utils/iostreams/ConsoleLog.swift
+          python3 builder/patch_jktcp_reliability.py jktcp
+          python3 builder/patch_coredevice_idevice.py idevice jktcp
+          ! grep -R -E 'rppairing_connect_quic|create_quic_listener|quinn::'             idevice/ffi/src/tunnel_provider.rs idevice/idevice/src/tunnel.rs
 
-      - name: Prepare exact SideStore 0.7.0 integration
+      - name: Test CoreDevice transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path jktcp/Cargo.toml
+          cargo fmt --manifest-path idevice/ffi/Cargo.toml
+          git -C jktcp diff --check
+          git -C idevice diff --check
+          cargo test --manifest-path jktcp/Cargo.toml --lib -- --skip tests::local_tcp --skip tests::handle_speed
+          cargo check --manifest-path idevice/ffi/Cargo.toml --features obfuscate
+
+      - name: Build IDevice.xcframework
+        working-directory: idevice
+        shell: bash
+        run: |
+          set -euo pipefail
+          BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$(xcrun --sdk iphoneos --show-sdk-path)"             IPHONEOS_DEPLOYMENT_TARGET=15.0             cargo build --release --target aarch64-apple-ios             --features obfuscate --manifest-path ffi/Cargo.toml
+          test -f target/aarch64-apple-ios/release/libidevice_ffi.a
+          rm -rf swift/IDevice.xcframework
+          cp ffi/idevice.h swift/include/idevice.h
+          xcodebuild -create-xcframework             -library target/aarch64-apple-ios/release/libidevice_ffi.a             -headers swift/include             -output swift/IDevice.xcframework
+
+      - name: Apply upstream SideStore 0.7.0 CoreDevice integration
         shell: bash
         run: |
           set -euo pipefail
@@ -142,18 +173,17 @@ jobs:
           rm -rf "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
           cp -R idevice/swift/IDevice.xcframework "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
 
-          python3 builder/scripts/adapt_sidestore_070_pairing.py "$MUX"
-          python3 builder/scripts/adapt_sidestore_070_signing.py "$SIDE"
-          python3 builder/scripts/patch_sidestore_integration.py "$MUX" "$SIDE"
-          python3 builder/scripts/patch_background_automation.py "$SIDE"
-          python3 builder/scripts/patch_local_idevice_package.py "$MUX"
+          python3 builder/adapt_sidestore_070_pairing.py "$MUX"
+          python3 builder/adapt_sidestore_070_signing.py "$SIDE"
+          python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
+          python3 builder/patch_background_automation.py "$SIDE"
+          python3 builder/patch_local_idevice_package.py "$MUX"
 
-          # Idempotence: applying the complete integration twice must not change the result.
-          python3 builder/scripts/adapt_sidestore_070_pairing.py "$MUX"
-          python3 builder/scripts/adapt_sidestore_070_signing.py "$SIDE"
-          python3 builder/scripts/patch_sidestore_integration.py "$MUX" "$SIDE"
-          python3 builder/scripts/patch_background_automation.py "$SIDE"
-          python3 builder/scripts/patch_local_idevice_package.py "$MUX"
+          python3 builder/adapt_sidestore_070_pairing.py "$MUX"
+          python3 builder/adapt_sidestore_070_signing.py "$SIDE"
+          python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
+          python3 builder/patch_background_automation.py "$SIDE"
+          python3 builder/patch_local_idevice_package.py "$MUX"
 
           git -C "$MUX" diff --check
           swiftc -frontend -parse "$MUX/DeviceGateway/idevice/IdeviceGateway.swift"
@@ -163,13 +193,6 @@ jobs:
           swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
           swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
           swiftc -frontend -parse "$SIDE/AltStore/AppDelegate.swift"
-          swiftc -frontend -parse "$SIDE/AltStore/SceneDelegate.swift"
-
-      - name: Build LiveContainer
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcodebuild -project work/LiveContainer/LiveContainer.xcodeproj             -scheme LiveContainer -sdk iphoneos -configuration Release             -derivedDataPath "$RUNNER_TEMP/livecontainer-derived-data"             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
       - name: Build embedded SideStore
         shell: bash
@@ -178,32 +201,25 @@ jobs:
           xcodebuild -resolvePackageDependencies             -project work/EmbeddedSideStore/AltStore.xcodeproj             -scheme SideStore             -derivedDataPath "$RUNNER_TEMP/embedded-sidestore-derived-data"
           xcodebuild -project work/EmbeddedSideStore/AltStore.xcodeproj             -scheme SideStore -sdk iphoneos -configuration Release             -derivedDataPath "$RUNNER_TEMP/embedded-sidestore-derived-data"             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
-      - name: Prepare compatible packager
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/prepare_compat_packager.py
-
-      - name: Package custom IPA
+      - name: Package official-style LiveContainer+SideStore
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          python3 builder/scripts/package_livecontainer_combined.py             --root work/LiveContainer             --host "$RUNNER_TEMP/livecontainer-derived-data/Build/Products/Release-iphoneos/LiveContainer.app"             --side "$RUNNER_TEMP/embedded-sidestore-derived-data/Build/Products/Release-iphoneos/SideStore.app"             --output artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/package_livecontainer_sidestore.py             --source work/LiveContainer             --host "$RUNNER_TEMP/livecontainer-derived-data/Build/Products/Release-iphoneos/LiveContainer.app"             --side "$RUNNER_TEMP/embedded-sidestore-derived-data/Build/Products/Release-iphoneos/SideStore.app"             --output artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
-      - name: Verify IPA
+      - name: Final static audit
         shell: bash
         run: |
           set -euo pipefail
-          test -s artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
-          python3 builder/scripts/patch_combined_refresh_contract.py --verify-ipa artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
-          unzip -l artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa | grep -F 'Payload/LiveContainer.app/Frameworks/SideStoreApp.framework/SideStore'
-          unzip -l artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa | grep -F 'LiveProcess.appex'
+          python3 builder/audit_ipa.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/audit_ipa_signing.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
-      - name: Upload IPA
+      - name: Upload IPA and audits
         uses: actions/upload-artifact@v4
         with:
           name: LiveContainer-SideStore-AutoRefresh-Dicky
-          path: artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          path: |
+            artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
           if-no-files-found: error
           retention-days: 14

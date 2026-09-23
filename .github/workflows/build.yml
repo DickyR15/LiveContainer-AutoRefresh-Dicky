@@ -180,6 +180,7 @@ jobs:
           python3 builder/adapt_sidestore_070_pairing.py "$MUX"
           python3 builder/adapt_sidestore_070_signing.py "$SIDE"
           python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
+          python3 scripts/prepatch_scene_reschedule.py "$SIDE"
           python3 builder/patch_background_automation.py "$SIDE"
           python3 builder/patch_local_idevice_package.py "$MUX"
 

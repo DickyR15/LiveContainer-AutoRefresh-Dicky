@@ -98,6 +98,8 @@ jobs:
           set -euo pipefail
           python3 builder/scripts/patch_livecontainer_autorefresh.py work/LiveContainer
           python3 builder/scripts/patch_livecontainer_autorefresh.py work/LiveContainer
+          # The scheduler references CombinedFailure; keep its allowlisted model in the 3.8.10 target source tree.
+          cp work/AutoRefresh/scripts/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           python3 builder/scripts/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift

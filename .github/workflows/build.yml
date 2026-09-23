@@ -122,6 +122,8 @@ jobs:
           PY
           python3 builder/scripts/patch_combined_refresh_contract.py work/EmbeddedSideStore
           python3 builder/scripts/patch_combined_refresh_contract.py work/EmbeddedSideStore
+          # SideStore's background refresh operation also uses the shared failure model.
+          cp work/AutoRefresh/scripts/templates/combined_failure.swift work/EmbeddedSideStore/SideStore/Core/Operations/CombinedFailure.swift
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Utils/iostreams/ConsoleLog.swift
 

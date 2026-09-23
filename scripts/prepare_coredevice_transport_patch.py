@@ -11,16 +11,9 @@ MUX = Path("work/EmbeddedSideStore/Dependencies/minimuxer")
 
 def load_focused_module():
     source = UPSTREAM.read_text(encoding="utf-8")
-    start = source.find("    runner = minimuxer.parent.parent / \"SideStore/Core/Operations/PipelineRunner.swift\"")
-    if start < 0:
-        start = source.find("    runner = sidestore / \"SideStore/Core/Operations/PipelineRunner.swift\"")
-    if start < 0:
-        raise SystemExit("focused transport: PipelineRunner block anchor not found")
-    end = source.find("    send = sidestore / \"SideStore/Core/Operations/PipelineOperations/SendAppOperation.swift\"", start)
-    if end < 0:
-        raise SystemExit("focused transport: PipelineRunner block end anchor not found")
-    source = source[:start] + "    # Dicky build: keep official SideStore 12a496ca PipelineRunner unchanged.\n" + source[end:]
-
+    # Keep the official SideStore 12a496ca operation/pipeline layers unchanged.
+    # The upstream v3.0.2 operation patches target a different SideStore revision.
+    source = source[:start] + "    return\\n\\n\\n" + source[source.find("def verify(root):"):]
     verify_start = source.find("def verify(root):")
     if verify_start < 0:
         raise SystemExit("focused transport: verify function not found")

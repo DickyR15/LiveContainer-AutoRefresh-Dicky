@@ -214,7 +214,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          python3 builder/package_livecontainer_sidestore.py             --source work/LiveContainer             --host "$RUNNER_TEMP/livecontainer-derived-data/Build/Products/Release-iphoneos/LiveContainer.app"             --side "$RUNNER_TEMP/embedded-sidestore-derived-data/Build/Products/Release-iphoneos/SideStore.app"             --output artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/scripts/package_livecontainer_sidestore.py             --source work/LiveContainer             --host "$RUNNER_TEMP/livecontainer-derived-data/Build/Products/Release-iphoneos/LiveContainer.app"             --side "$RUNNER_TEMP/embedded-sidestore-derived-data/Build/Products/Release-iphoneos/SideStore.app"             --output artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
       - name: Final static audit
         shell: bash

@@ -90,6 +90,7 @@ jobs:
           cp builder/upstream-autorefresh/scripts/*.py builder/
           cp -R builder/upstream-autorefresh/scripts/templates builder/
           cp builder/scripts/adapt_sidestore_070_signing.py builder/adapt_sidestore_070_signing.py
+          python3 builder/scripts/patch_autorefresh_behavior.py
           python3 builder/scripts/patch_autorefresh_localization_zh_tw.py
           swiftc -version
 

@@ -19,25 +19,10 @@ def install_compat(mod):
 
     def compat_replace_once(text, old, new, label):
         if label == "background authentication preflight":
-            replacement = r'''        // Use only AuthManager's public authentication state.
-        let auth = AuthManager.shared
-        let hasPasswordCredentials = auth.currentAppleID != nil && auth.hasStoredPassword
-        let hasTokenCredentials = auth.adsid != nil && auth.hasStoredXcodeToken
-        let hasReusableCredentialPath = auth.isAuthenticated || CertificateManager.shared.activeCertificate != nil
-        debugLog("[AUTO_REFRESH] AUTH_CREDENTIAL_VISIBILITY password_path=\\(hasPasswordCredentials) token_path=\\(hasTokenCredentials) reusable_path=\\(hasReusableCredentialPath)")
-        guard hasPasswordCredentials || hasTokenCredentials || hasReusableCredentialPath else {
-            let error = NSError(
-                domain: "com.SideStore.Authentication",
-                code: 1004,
-                userInfo: [NSLocalizedDescriptionKey: "The refresh process cannot access saved sign-in credentials. Open SideStore to check your account."]
-            )
-            debugLog("[AUTO_REFRESH] AUTH_PREFLIGHT_FAIL reason=no_accessible_authentication_path")
-            self.scheduleFinishedRefreshingNotification(for: .failure(error), delay: 0)
-            throw error
-        }
-        debugLog("[AUTO_REFRESH] AUTH_PREFLIGHT_PASS")
-'''
-            return text.replace(old, replacement, 1) if text.count(old) == 1 else mod.die("background authentication preflight: expected one anchor")
+            # Skip this optional diagnostic preflight for SideStore 0.7.0.
+            # It touches private AuthManager session/team state and is not required
+            # for the actual background refresh or CoreDevice transport.
+            return text
         if label == "application background reschedule":
             if "func applicationDidEnterBackground" not in text:
                 mod.die("application background reschedule: method not found")

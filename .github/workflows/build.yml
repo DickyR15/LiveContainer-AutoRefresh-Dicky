@@ -56,6 +56,7 @@ jobs:
           set -euo pipefail
           mkdir -p builder/scripts
           cp work/AutoRefresh/scripts/*.py builder/scripts/
+          cp -R work/AutoRefresh/scripts/templates builder/scripts/templates
 
       - name: Install build tools
         shell: bash

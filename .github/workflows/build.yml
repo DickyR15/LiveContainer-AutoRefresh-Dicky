@@ -16,6 +16,7 @@ env:
   LIVE_CONTAINER_REF: 4dbe0f9a626de801184a42c0be8d2cb105058e3d
   AUTO_REFRESH_REF: v3.0.2
   AUTO_REFRESH_COMMIT: 35c6c28c98e7261afe6049a133a9ae542d666d57
+  EMBEDDED_SIDESTORE_REF: 12a496ca1c766a102193634879823d16610bf1cd
 
 jobs:
   build:
@@ -74,7 +75,7 @@ jobs:
           import re
           from pathlib import Path
           s = Path("work/AutoRefresh/.github/workflows/livecontainer-build.yml").read_text()
-          for key in ("EMBEDDED_SIDESTORE_REF","MINIMUXER_REF","IDEVICE_REF","JKTCP_REF"):
+          for key in ("IDEVICE_REF","JKTCP_REF"):
               m = re.search(rf"{key}:\s*([0-9a-f]{{40}})", s)
               if not m:
                   raise SystemExit(f"missing {key}")
@@ -90,6 +91,7 @@ jobs:
           source build.env
           git clone --filter=blob:none https://github.com/LiveContainer/SideStore.git work/EmbeddedSideStore
           git -C work/EmbeddedSideStore checkout --detach "$EMBEDDED_SIDESTORE_REF"
+          test "$(git -C work/EmbeddedSideStore rev-parse HEAD)" = "$EMBEDDED_SIDESTORE_REF"
           git -C work/EmbeddedSideStore submodule update --init --recursive --depth=1
 
       - name: Apply host auto-refresh patch
@@ -106,6 +108,13 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
 
+      - name: Verify exact embedded SideStore baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SideStore revision: \$EMBEDDED_SIDESTORE_REF"
+          echo "Minimuxer revision: \$(git -C work/EmbeddedSideStore/Dependencies/minimuxer rev-parse HEAD)"
+
       - name: Apply SideStore background refresh patches
         shell: bash
         run: |
@@ -120,10 +129,6 @@ jobs:
           module.patch_background_operation(root)
           module.patch_console_log(root)
           PY
-          python3 builder/scripts/patch_combined_refresh_contract.py work/EmbeddedSideStore
-          python3 builder/scripts/patch_combined_refresh_contract.py work/EmbeddedSideStore
-          # SideStore's background refresh operation also uses the shared failure model.
-          cp work/AutoRefresh/scripts/templates/combined_failure.swift work/EmbeddedSideStore/SideStore/Core/Operations/CombinedFailure.swift
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift
           swiftc -frontend -parse work/EmbeddedSideStore/SideStore/Utils/iostreams/ConsoleLog.swift
 

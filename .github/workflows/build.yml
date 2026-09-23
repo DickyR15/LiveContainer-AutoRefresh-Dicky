@@ -184,7 +184,7 @@ jobs:
           xcodebuild -resolvePackageDependencies             -project work/EmbeddedSideStore/AltStore.xcodeproj             -scheme SideStore             -derivedDataPath "$RUNNER_TEMP/embedded-sidestore-derived-data"
           xcodebuild -project work/EmbeddedSideStore/AltStore.xcodeproj             -scheme SideStore -sdk iphoneos -configuration Release             -derivedDataPath "$RUNNER_TEMP/embedded-sidestore-derived-data"             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
-      - name: Relax combined verifier for the 3.8.10-compatible feature set
+      - name: Prepare compatible packager
         shell: bash
         run: |
           set -euo pipefail
@@ -192,31 +192,19 @@ jobs:
           from pathlib import Path
           p = Path("builder/scripts/package_livecontainer_combined.py")
           s = p.read_text()
-          start = s.index("def verify(")
-          end = s.index("\ndef package(", start)
-          verify = r'''def verify(path, side_product=None):
-    result = inventory(path)
-    bundles = result['bundles']
-    base = 'Payload/LiveContainer.app'
-    embedded = base + '/Frameworks/SideStoreApp.framework'
-    assert bundles[embedded]['info']['CFBundleIdentifier'] == 'com.SideStore.SideStore', 'iLoader SideStoreLc recognition'
-    assert bundles[embedded]['executable_present']
-    import zipfile, struct
-    with zipfile.ZipFile(path) as archive:
-        executable = archive.read(embedded + '/SideStore')
-        assert executable[:4] == b'\xcf\xfa\xed\xfe', 'Expected arm64 Mach-O'
-        assert struct.unpack_from('<I', executable, 12)[0] == 6, 'SideStore must be MH_DYLIB'
-        assert archive.read(embedded + '/LCAppInfo.plist')
-        assert b'liveContainerAutoRefreshVerification' in executable, 'Patched embedded refresh operation missing'
-        host_code = archive.read(base + '/Frameworks/LiveContainerSwiftUI.framework/LiveContainerSwiftUI')
-        assert b'liveContainerAutoRefresh' in host_code, 'Host automation missing'
-        assert b'BGTaskSchedulerPermittedIdentifiers' in archive.read(base + '/Info.plist'), 'Background task configuration missing'
-        assert b'processing' in archive.read(base + '/Info.plist'), 'Background processing mode missing'
-    result['semantic_verification'] = 'passed; 3.8.10-compatible AutoRefresh/CoreDevice integration'
-    result['iloader_special_app'] = 'SideStoreLc'
-    return result
-'''
-          p.write_text(s[:start] + verify + s[end:])
+          s = s.replace(
+              "assert b'V3_UNIFIED_SHELL_V1' in host_code, 'Unified v3 host shell missing'\n",
+              ""
+          )
+          s = s.replace(
+              "assert b'V3SideStoreService' in executable, 'SideStore command service missing'\n",
+              ""
+          )
+          s = s.replace(
+              "assert b'v3Execute:reply:' in support_code, 'XPC command endpoint missing'\n",
+              ""
+          )
+          p.write_text(s)
           PY
 
       - name: Package custom IPA

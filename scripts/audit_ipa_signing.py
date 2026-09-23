@@ -5,7 +5,7 @@ def signing(data):
     if data[:4]==b"\xca\xfe\xba\xbe":
         count=struct.unpack_from(">I",data,4)[0]
         return [signing(data[o:o+s]) for _,_,o,s,_ in (struct.unpack_from(">5I",data,8+i*20) for i in range(count))]
-    if data[:4] not in (b"\xcf\xfa\xed\xfe",b"\xce\xfa\ed\fe"): return {"format":"not_supported"}
+    if data[:4] not in (b"\xcf\xfa\xed\xfe",b"\xce\xfa\xed\xfe"): return {"format":"not_supported"}
     pos=32 if data[0]==0xcf else 28; count=struct.unpack_from("<I",data,16)[0]
     out={"signature_present":False,"xml_entitlements":None}
     for _ in range(count):

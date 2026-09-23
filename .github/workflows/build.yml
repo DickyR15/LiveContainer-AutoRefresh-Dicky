@@ -184,7 +184,10 @@ jobs:
           python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
           python3 builder/patch_local_idevice_package.py "$MUX"
 
-          grep -Fq "[AUTO_REFRESH] AUTH_PREFLIGHT_PASS" "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
+          # SideStore 0.7.0 is intentionally built without the newer private AuthManager
+          # AUTH_PREFLIGHT diagnostic. Verify the real background-refresh patch instead.
+          grep -Fq "AutomaticRefreshHistory" "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
+          ! grep -Fq "hasPasswordCredentials || hasTokenCredentials || hasReusableSession" "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
           grep -Fq "SIDESTORE_SIGN_PASS" "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
           grep -Fq "SELF_REFRESH_COMPLETE" "$SIDE/AltStore/AppDelegate.swift"
           grep -Fq "scheduleAutomaticRefresh" "$SIDE/AltStore/SceneDelegate.swift"

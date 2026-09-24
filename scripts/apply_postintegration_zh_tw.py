@@ -118,8 +118,32 @@ for root in ROOTS:
                 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")',
                 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")',
             )
+            s = s.replace('Text(lastError)', 'Text(localizeRuntimeDiagnostic(lastError))')
+            s = s.replace('Text(detail)', 'Text(localizeRuntimeDiagnostic(detail))')
             marker = "    private func notifyScheduleChanged() {"
             helpers = '''    private func localizeRuntimeDiagnostic(_ raw: String) -> String {
+        var value = raw
+        let replacements: [(String, String)] = [
+            ("VPN Connection Error:", "VPN 連線錯誤："),
+            ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
+            ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),
+            ("Refresh Failed", "重新整理失敗"),
+            ("Refresh Succeeded", "重新整理成功"),
+            ("Refresh Pending", "重新整理等待中"),
+            ("Refresh Running", "重新整理執行中"),
+            ("Failure", "失敗"),
+            ("Failed", "失敗"),
+            ("Unknown", "未知"),
+            ("Standard", "標準"),
+            ("Limited", "有限制")
+        ]
+        for (source, target) in replacements {
+            value = value.replacingOccurrences(of: source, with: target)
+        }
+        return value
+    }
+
+    private func localizeRuntimeDiagnostic(_ raw: String) -> String {
         var value = raw
         let replacements: [(String, String)] = [
             ("VPN Connection Error:", "VPN 連線錯誤："),

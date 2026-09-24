@@ -107,6 +107,10 @@ for root in ROOTS:
                 'Text("重新整理：\\(localizedRefreshState(healthState))")',
             )
             s = s.replace(
+                'Text("重新整理：\\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")',
+                'Text("重新整理：\\(localizedRefreshState(healthState))")',
+            )
+            s = s.replace(
                 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)',
                 'Text(localizedRefreshState(result))',
             )

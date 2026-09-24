@@ -59,6 +59,7 @@ REPLACEMENTS = {
         ('"Checked after a successful refresh"', '"成功重新整理後檢查"'),
     ],
     "livecontainer_refresh_settings.swift": [
+        ('Text(lastError)', 'Text(localizedRefreshError(lastError))'),
         ('if !lastError.isEmpty { Text(lastError).font(.caption).foregroundColor(.red) }',
          'if !lastError.isEmpty { Text(localizedRefreshError(lastError)).font(.caption).foregroundColor(.red) }'),
         ('Section("Status")', 'Section("狀態")'),

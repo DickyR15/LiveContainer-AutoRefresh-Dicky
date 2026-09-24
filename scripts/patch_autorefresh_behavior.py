@@ -5,46 +5,38 @@ ROOT = Path(__file__).resolve().parent.parent
 T = ROOT / "templates"
 
 def patch_ios27_intent_runner(root: Path) -> None:
-    """
-    iOS 27 workaround for the LiveProcess private App-Intent executor.
-
-    v3.0.2 launches RefreshAllAppsIntent through LNActionExecutorOptions with
-    kind=2 (App Shortcut). On iOS 27 this path can return ADI -45061 even
-    though the same SideStore refresh succeeds from the SideStore UI. The
-    fix is deliberately small: keep the upstream implementation, but switch
-    only the executor context to the generic kind=0 on iOS 27+. Do not replace
-    the call with a direct AppIntent.perform() from LiveContainer; that runs in
-    the wrong process/context and reproduces the same Device-not-provisioned
-    failure.
-    """
+    """Open SideStore before the iOS 27 automatic refresh action."""
     path = root / "SideStoreSupport/PrivateIntentRunner.m"
     if not path.exists():
         raise SystemExit(f"missing PrivateIntentRunner source: {path}")
     text = path.read_text(encoding="utf-8")
-    old = '    options.kind = 2; // LNActionExecutorOptions kind: App Shortcut\n'
-    new = '''    if (@available(iOS 27.0, *)) {
-        // iOS 27: avoid the App Shortcut executor context used by the
-        // RefreshAllAppsIntent Shortcut path. Manual SideStore refresh uses
-        // a different context and succeeds on affected devices.
-        options.kind = 0;
-        NSLog(@"[AUTO_REFRESH] IOS27_INTENT_EXECUTOR_KIND=0");
-    } else {
-        options.kind = 2;
-    }
-'''
-    if "IOS27_INTENT_EXECUTOR_KIND=0" in text:
+    if "IOS27_OPEN_APP_BEFORE_REFRESH" in text:
         return
-    if text.count(old) != 1:
-        raise SystemExit(
-            "iOS27 intent runner patch: expected exactly one upstream kind=2 anchor, "
-            f"found {text.count(old)}"
-        )
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
+    old = '''    LNAction* action = [[actionClass alloc] initWithIdentifier:identifier
+                                                    mangledTypeName:mangledTypeName
+                                                      openAppWhenRun:NO
+                                                         parameters:@[]];
+'''
+    new = '''    BOOL openAppBeforeRefresh = NO;
+    if (@available(iOS 27.0, *)) {
+        // iOS 27: initialize SideStore before Refresh All Apps.
+        // This mirrors the known-good sidestore:// -> refresh sequence.
+        openAppBeforeRefresh = YES; // IOS27_OPEN_APP_BEFORE_REFRESH
+    }
+
+    LNAction* action = [[actionClass alloc] initWithIdentifier:identifier
+                                                    mangledTypeName:mangledTypeName
+                                                      openAppWhenRun:openAppBeforeRefresh
+                                                         parameters:@[]];
+'''
+    if text.count(old) != 1:
+        raise SystemExit(f"iOS27 open-app patch: expected one anchor, found {text.count(old)}")
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
     verify = path.read_text(encoding="utf-8")
-    for required in ("@available(iOS 27.0, *)", "options.kind = 0;", "options.kind = 2;", "IOS27_INTENT_EXECUTOR_KIND=0"):
+    for required in ("IOS27_OPEN_APP_BEFORE_REFRESH", "openAppWhenRun:openAppBeforeRefresh", "openAppBeforeRefresh = YES"):
         if required not in verify:
-            raise SystemExit(f"iOS27 intent runner verification failed: {required}")
+            raise SystemExit("iOS27 open-app verification failed: " + required)
 
 
 def replace_once(path, old, new, label):

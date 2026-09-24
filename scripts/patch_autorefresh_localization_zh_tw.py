@@ -75,7 +75,7 @@ REPLACEMENTS = {
         ('Label("Delete", systemImage: "trash")', 'Label("刪除", systemImage: "trash")'),
         ('.accessibilityAction(named: Text("Delete"))', '.accessibilityAction(named: Text("刪除"))'),
         ('if !lastError.isEmpty { Text(lastError)', 'if !lastError.isEmpty { Text(localizedRefreshError(lastError))'),
-        ('Text(result.replacingOccurrences(of: "_", with: " ").capitalized)', 'Text(localizedRefreshState(result))'),
+        ('Text(localizedRefreshState(result))', 'Text(localizedRefreshState(result))'),
         ('"\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")"', '"\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))"'),
         ('Text("Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")', 'Text("重新整理：\\(localizedRefreshState(healthState))")'),
     ],
@@ -115,6 +115,16 @@ def add_runtime_helpers(text: str) -> str:
         }
     }
 
+    private func localizedProtection(_ raw: String) -> String {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "enhanced": return "增強"
+        case "standard": return "標準"
+        case "limited": return "有限制"
+        case "unknown": return "未知"
+        default: return raw
+        }
+    }
+
     private func localizedRefreshHistoryValue(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
         case "success", "succeeded", "completed", "verified": return "成功"
@@ -140,14 +150,20 @@ def add_runtime_helpers(text: str) -> str:
             ("Wi-Fi is unavailable. Connect to Wi-Fi before refreshing.", "Wi-Fi 無法使用。請先連線 Wi-Fi，再重新整理。"),
             ("Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry.", "啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。"),
             ("Refresh Failed", "重新整理失敗"),
+            ("REFRESH FAILED", "重新整理失敗"),
             ("Refresh Succeeded", "重新整理成功"),
             ("Refresh Pending", "重新整理等待中"),
             ("Refresh Running", "重新整理執行中"),
             ("Failure", "失敗"),
+            ("FAILURE", "失敗"),
             ("Failed", "失敗"),
+            ("FAILED", "失敗"),
             ("Unknown", "未知"),
+            ("UNKNOWN", "未知"),
             ("Standard", "標準"),
-            ("Limited", "有限制")
+            ("STANDARD", "標準"),
+            ("Limited", "有限制"),
+            ("LIMITED", "有限制")
         ]
         for (source, target) in replacements {
             value = value.replacingOccurrences(of: source, with: target)
@@ -176,6 +192,17 @@ def main():
             raise SystemExit(f"no localization changes made: {name}")
         path.write_text(text, encoding="utf-8")
         print(f"localized template: {name}")
+
+    settings = (TEMPLATES / "livecontainer_refresh_settings.swift").read_text(encoding="utf-8")
+    forbidden = [
+        "Scheduled refresh", "Frequency", "Target time (local)", "Protection: ",
+        "REFRESH FAILED", "Refresh Failed", "Limited", "Standard", "Unknown",
+        "SideStore scheduled refresh"
+    ]
+    leaked = [item for item in forbidden if item in settings]
+    if leaked:
+        raise SystemExit("English UI strings remain in refresh settings: " + ", ".join(leaked))
+
     print("Taiwan Traditional Chinese AutoRefresh UI localization: PASS")
 
 if __name__ == "__main__":

@@ -208,7 +208,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer work/EmbeddedSideStore
           ! grep -R -n -E 'Text\\("(Scheduled refresh|Frequency|Limited|Unknown)"\\)|Text\\("SideStore scheduled refresh"\\)' work/LiveContainer work/EmbeddedSideStore --include='*.swift' || true
 
       - name: Build embedded SideStore

@@ -5,6 +5,20 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
 
 REPLACEMENTS = {
+    "combined_failure.swift": [
+        ('"The \\(operation) request was cancelled. Its result may need reconciliation."', '"\\(operation) 請求已取消。可能需要重新確認結果。"'),
+        ('"The \\(operation) request timed out during \\(stage.rawValue)."', '"\\(operation) 請求在 \\(stage.rawValue) 階段逾時。"'),
+        ('"Could not connect to the device through CoreDevice."', '"無法透過 CoreDevice 連線至裝置。"'),
+        ('"The CoreDevice tunnel could not be established."', '"無法建立 CoreDevice 通道。"'),
+        ('"Refresh completion could not be verified from the installation results."', '"無法從安裝結果驗證重新整理是否完成。"'),
+        ('"SideStore could not sign the application."', '"SideStore 無法簽名此 App。"'),
+        ('"Check LocalDevVPN and the device connection, then retry explicitly. This failure alone does not prove invalid pairing."', '"請檢查 LocalDevVPN 與裝置連線後再手動重試。僅憑此錯誤無法判定配對無效。"'),
+    ],
+    "livecontainer_network_preflight.swift": [
+        ('"LocalDevVPN activation did not return. Enable LocalDevVPN and retry refresh."', '"LocalDevVPN 啟用後未返回。請啟用 LocalDevVPN 後重試重新整理。"'),
+        ('"Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry."', '"啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。"'),
+        ('"Open LiveContainer and enable LocalDevVPN to continue refresh."', '"請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"'),
+    ],
     "v3_unified_shell.swift": [
         ('Button("Retry Connection")', 'Button("重新連線")'),
         ('Text("LiveContainer can notify you when a refresh starts, completes, or needs attention. Nothing runs differently if you skip this.")', 'Text("LiveContainer 可以在重新整理開始、完成或需要注意時通知你。略過此設定不會影響其他功能。")'),
@@ -111,6 +125,20 @@ REPLACEMENTS = {
 }
 
 def main():
+    # The upstream integration script injects this navigation label after the
+    # template localization pass. Patch that exact source before integration.
+    generator = ROOT / "patch_livecontainer_autorefresh.py"
+    if generator.exists():
+        text = generator.read_text(encoding="utf-8")
+        before = text
+        text = text.replace(
+            'NavigationLink { LCEmbeddedSideStoreRefreshView() } label: { Text("SideStore scheduled refresh") }',
+            'NavigationLink { LCEmbeddedSideStoreRefreshView() } label: { Text("SideStore 排程重新整理") }',
+        )
+        if text != before:
+            generator.write_text(text, encoding="utf-8")
+            print("localized: patch_livecontainer_autorefresh.py injected label")
+
     for name, replacements in REPLACEMENTS.items():
         path = TEMPLATES / name
         text = path.read_text(encoding="utf-8")

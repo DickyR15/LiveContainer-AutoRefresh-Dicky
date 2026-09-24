@@ -141,6 +141,8 @@ jobs:
           SETTINGS="work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift"
           test -s "$SETTINGS"
           grep -Fq 'Text(localizedRefreshError(lastError))' "$SETTINGS"
+          # The screenshot's remaining English "Failure" is the separate Last result card.
+          grep -Fq 'Text(localizedRefreshHistoryValue(result))' "$SETTINGS"
           grep -Fq 'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")' "$SETTINGS"
           grep -Fq 'private func localizedRefreshError' "$SETTINGS"
           grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"
@@ -154,6 +156,7 @@ jobs:
           ! grep -Fq 'Text("Protection: ' "$SETTINGS"
           ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           ! grep -Fq 'Text(lastError)' "$SETTINGS"
+          ! grep -Fq 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)' "$SETTINGS"
           swiftc -frontend -parse "$SETTINGS"
           echo "Pre-build AutoRefresh zh-TW source audit: PASS"
 

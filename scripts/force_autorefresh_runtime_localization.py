@@ -21,16 +21,19 @@ def main() -> None:
         fail(f"missing generated settings view: {path}")
     text = path.read_text(encoding="utf-8")
 
-    text = replace_once(
-        text,
-        'if !lastError.isEmpty { Text(lastError)',
-        'if !lastError.isEmpty { Text(localizedRefreshError(lastError))',
-        "runtime error display",
-    )
+    # Upstream AutoRefresh uses multiline SwiftUI formatting, so patch the
+    # actual UI call rather than assuming the whole if-block is one line.
+    text, n_error = re.subn(r'Text\\(lastError\\)', 'Text(localizedRefreshError(lastError))', text, count=1)
+    if n_error != 1:
+        fail(f"runtime error display: expected 1 Text(lastError) call, found {n_error}")
 
-    history_old = '"\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")"'
-    history_new = '"\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))"'
-    text = replace_once(text, history_old, history_new, "history result display")
+    # The history row is also multiline in the generated source. Match the
+    # actual interpolation expression and keep internal result tokens untouched.
+    history_pattern = r'Text\\("\\\\(entry\.values\["source"\]\?\.capitalized \?\? "Unknown"\\) - \\\\(entry\.values\["result"\]\?\.capitalized \?\? "Unknown"\\)"\\)'
+    history_replacement = 'Text("\\\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\\\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'
+    text, n_history = re.subn(history_pattern, history_replacement, text, count=1)
+    if n_history != 1:
+        fail(f"history result display: expected 1 history Text(...) call, found {n_history}")
 
     marker = "    private func notifyScheduleChanged() {"
     if "private func localizedRefreshError" not in text:

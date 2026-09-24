@@ -24,17 +24,18 @@ def main() -> None:
     # Patch the actual SwiftUI calls. Whitespace/line breaks around these
     # calls are irrelevant, so replace the exact expression itself.
     error_token = "Text(lastError)"
-    n_error = text.count(error_token)
-    if n_error != 1:
-        fail(f"runtime error display: expected 1 Text(lastError) call, found {n_error}")
-    text = text.replace(error_token, "Text(localizedRefreshError(lastError))", 1)
+    error_localized = "Text(localizedRefreshError(lastError))"
+    if error_token in text:
+        text = text.replace(error_token, error_localized, 1)
+    elif error_localized not in text:
+        fail("runtime error display: neither raw nor localized Text(lastError) exists")
 
     history_old = 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")'
     history_new = 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'
-    n_history = text.count(history_old)
-    if n_history != 1:
-        fail(f"history result display: expected 1 exact history Text(...) call, found {n_history}")
-    text = text.replace(history_old, history_new, 1)
+    if history_old in text:
+        text = text.replace(history_old, history_new, 1)
+    elif history_new not in text:
+        fail("history result display: neither raw nor localized history Text(...) exists")
 
     marker = "    private func notifyScheduleChanged() {"
     if "private func localizedRefreshError" not in text:

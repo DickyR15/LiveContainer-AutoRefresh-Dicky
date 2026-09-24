@@ -77,7 +77,7 @@ for root in ROOTS:
         # Only replace exact Swift string literals. Never replace substrings
         # inside API/symbol names such as SecItemDelete or errSecSuccess.
         for source, target in REPLACEMENTS.items():
-            pattern = r'(["\\u0027])' + re.escape(source) + r'\\1'
+            pattern = r'(["\\'])' + re.escape(source) + r'\\1'
             text = re.sub(pattern, lambda m: m.group(1) + target + m.group(1), text)
         if text != old:
             path.write_text(text, encoding="utf-8")

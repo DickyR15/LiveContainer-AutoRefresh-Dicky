@@ -132,6 +132,8 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
+          python3 builder/scripts/force_autorefresh_runtime_localization.py work/LiveContainer
+          swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
 
       - name: Enforce final zh-TW localization for LiveContainer
         shell: bash
@@ -235,6 +237,10 @@ jobs:
           grep -Fq 'VPN 連線錯誤：' "$SETTINGS"
           grep -Fq '未偵測到 utun 介面' "$SETTINGS"
           grep -Fq '請確認 LocalDevVPN 已連線並正常執行。' "$SETTINGS"
+          grep -Fq 'Text(localizedRefreshError(lastError))' "$SETTINGS"
+          grep -Fq 'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")' "$SETTINGS"
+          grep -Fq 'No utun interface detected — LocalDevVPN is not connected' "$SETTINGS"
+          grep -Fq 'Please make sure LocalDevVPN is connected and running properly.' "$SETTINGS"
           if grep -F -n 'Text("Failure")' "$SETTINGS"; then
             echo "English Failure UI remains."
             exit 1

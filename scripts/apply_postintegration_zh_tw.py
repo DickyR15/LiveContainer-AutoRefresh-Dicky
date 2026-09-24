@@ -114,6 +114,14 @@ def main():
                 continue
             old = text
 
+            # The AutoRefresh settings view contains runtime localization helpers.
+            # Do not run broad post-integration replacements over that file: values
+            # such as "Failure"/"Success" are also protocol/state tokens and must
+            # remain English inside Swift logic while their UI output is localized
+            # by localizedRefreshHistoryValue/localizedRefreshError.
+            if path.name == "LCEmbeddedSideStoreRefreshView.swift":
+                continue
+
             # First pass: exact user-visible Swift string literals only.
             text = replace_in_swift_string_literals(text)
 

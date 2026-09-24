@@ -143,6 +143,11 @@ jobs:
           grep -Fq 'Text(localizedRefreshError(lastError))' "$SETTINGS"
           # The screenshot's remaining English "Failure" is the separate Last result card.
           grep -Fq 'Text(localizedRefreshHistoryValue(result))' "$SETTINGS"
+          grep -Fq 'case "coalesced": return "已合併"' "$SETTINGS"
+          grep -Fq 'ADI 原生錯誤' "$SETTINGS"
+          grep -Fq 'ADIOTPRequest 要求失敗' "$SETTINGS"
+          grep -Fq '裝置尚未完成佈建' "$SETTINGS"
+          grep -Fq '重新整理正在執行中，請等待完成後再重試。' "$SETTINGS"
           grep -Fq 'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")' "$SETTINGS"
           grep -Fq 'private func localizedRefreshError' "$SETTINGS"
           grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"
@@ -157,6 +162,7 @@ jobs:
           ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           ! grep -Fq 'Text(lastError)' "$SETTINGS"
           ! grep -Fq 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)' "$SETTINGS"
+          ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           swiftc -frontend -parse "$SETTINGS"
           echo "Pre-build AutoRefresh zh-TW source audit: PASS"
 

@@ -96,6 +96,14 @@ REPLACEMENTS = {
         ('"Permission required"', '"需要授權"'),
         ('"Permission denied"', '"授權遭拒"'),
         ('"Not configured"', '"尚未設定"'),
+        ('"Failure"', '"失敗"'),
+        ('"VPN Connection Error:"', '"VPN 連線錯誤："'),
+        ('"No utun interface detected — LocalDevVPN is not connected"', '"未偵測到 utun 介面 — LocalDevVPN 尚未連線"'),
+        ('"Please make sure LocalDevVPN is connected and running properly."', '"請確認 LocalDevVPN 已連線並正常執行。"'),
+        ('"Refresh Failed"', '"重新整理失敗"'),
+        ('"Refresh Succeeded"', '"重新整理成功"'),
+        ('"Refresh Pending"', '"重新整理等待中"'),
+        ('"Refresh Running"', '"重新整理執行中"'),
         ('"LocalDevVPN"', '"LocalDevVPN"'),
         ('"SideStore scheduled refresh"', '"SideStore 排程重新整理"'),
 
@@ -109,6 +117,36 @@ def main():
         before = text
         for old, new in replacements:
             text = text.replace(old, new)
+
+        # Dynamic refresh status and diagnostics are generated at runtime.
+        if name == "livecontainer_refresh_settings.swift":
+            text = text.replace(
+                '"Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"',
+                '"重新整理：\\(localizedRefreshState(healthState))"',
+            )
+            text = text.replace(
+                'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)',
+                'Text(localizedRefreshState(result))',
+            )
+            marker = "    private func notifyScheduleChanged() {"
+            helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
+        switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
+        case "success", "succeeded", "completed": return "成功"
+        case "failure", "failed": return "失敗"
+        case "pending": return "等待中"
+        case "running": return "執行中"
+        case "started": return "已開始"
+        case "disabled": return "已停用"
+        case "enabled": return "已啟用"
+        case "unknown": return "未知"
+        default: return raw.replacingOccurrences(of: "_", with: " ")
+        }
+    }
+
+'''
+            if marker in text and "private func localizedRefreshState" not in text:
+                text = text.replace(marker, helpers + marker, 1)
+
         if text == before:
             raise SystemExit(f"no changes made: {name}")
         path.write_text(text, encoding="utf-8")

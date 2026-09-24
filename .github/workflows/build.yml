@@ -132,7 +132,6 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
-          python3 "$GITHUB_WORKSPACE/scripts/apply_postintegration_zh_tw.py" work/LiveContainer work/EmbeddedSideStore
 
       - name: Build LiveContainer host
         shell: bash

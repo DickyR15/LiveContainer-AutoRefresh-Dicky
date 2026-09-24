@@ -30,6 +30,16 @@ def main() -> None:
     elif error_localized not in text:
         fail("runtime error display: neither raw nor localized Text(lastError) exists")
 
+    # There are TWO separate result UIs in the actual AutoRefresh view:
+    # 1) the "Last result" card (this is the "Failure" shown in the screenshot)
+    # 2) each row in the refresh history list.
+    last_result_old = 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)'
+    last_result_new = 'Text(localizedRefreshHistoryValue(result))'
+    if last_result_old in text:
+        text = text.replace(last_result_old, last_result_new, 1)
+    elif last_result_new not in text:
+        fail("last result display: neither raw nor localized Last result Text(...) exists")
+
     history_old = 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")'
     history_new = 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'
     if history_old in text:
@@ -95,6 +105,7 @@ def main() -> None:
 
     required = [
         'Text(localizedRefreshError(lastError))',
+        'Text(localizedRefreshHistoryValue(result))',
         'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")',
         'private func localizedRefreshError',
         'private func localizedRefreshHistoryValue',

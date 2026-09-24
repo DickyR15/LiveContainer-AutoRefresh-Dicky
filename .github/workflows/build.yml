@@ -129,7 +129,7 @@ jobs:
           python3 builder/scripts/patch_ios27_refresh_execution.py work/LiveContainer
           grep -Fq 'IOS27_DIRECT_REFRESH_INTENT' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
           grep -Fq 'if #available(iOS 27.0, *)' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
-          grep -Fq '_ = try await intent.perform()' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
+          grep -Fq 'try await callRefreshIntent(mangledTypeName: mangledTypeName)' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift

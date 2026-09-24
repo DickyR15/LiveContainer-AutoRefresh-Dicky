@@ -145,6 +145,29 @@ jobs:
             exit 1
           fi
 
+      - name: Verify final Taiwan Traditional Chinese AutoRefresh source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SETTINGS="work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift"
+          test -s "$SETTINGS"
+          grep -Fq 'Text(localizedRefreshError(lastError))' "$SETTINGS"
+          grep -Fq 'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")' "$SETTINGS"
+          grep -Fq 'private func localizedRefreshError' "$SETTINGS"
+          grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"
+          grep -Fq 'VPN 連線錯誤：' "$SETTINGS"
+          grep -Fq '未偵測到 utun 介面' "$SETTINGS"
+          grep -Fq '請確認 LocalDevVPN 已連線並正常執行。' "$SETTINGS"
+          ! grep -Fq 'Toggle("Scheduled refresh"' "$SETTINGS"
+          ! grep -Fq 'Picker("Frequency"' "$SETTINGS"
+          ! grep -Fq 'Picker("Weekday"' "$SETTINGS"
+          ! grep -Fq 'DatePicker("Target time (local)"' "$SETTINGS"
+          ! grep -Fq 'Text("Protection: ' "$SETTINGS"
+          ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
+          ! grep -Fq 'Text(lastError)' "$SETTINGS"
+          swiftc -frontend -parse "$SETTINGS"
+          echo "Pre-build AutoRefresh zh-TW source audit: PASS"
+
       - name: Build LiveContainer host
         shell: bash
         run: |
@@ -264,6 +287,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts
           python3 builder/scripts/package_livecontainer_sidestore.py             --source work/LiveContainer             --host "$RUNNER_TEMP/livecontainer-derived-data/Build/Products/Release-iphoneos/LiveContainer.app"             --side "$RUNNER_TEMP/embedded-sidestore-derived-data/Build/Products/Release-iphoneos/SideStore.app"             --output artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/scripts/audit_ipa_localization.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
       - name: Final static audit
         shell: bash

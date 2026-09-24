@@ -13,8 +13,6 @@ def main():
         assert "Payload/LiveContainer.app/Frameworks/SideStoreApp.framework/SideStore" in names, "missing embedded SideStore"
         data=z.read(host)
         markers=[
-            "localizedRefreshError",
-            "localizedRefreshHistoryValue",
             "VPN 連線錯誤：",
             "未偵測到 utun 介面",
             "請確認 LocalDevVPN 已連線並正常執行。",

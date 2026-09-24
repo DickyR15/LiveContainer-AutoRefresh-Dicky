@@ -59,6 +59,8 @@ REPLACEMENTS = {
         ('"Checked after a successful refresh"', '"成功重新整理後檢查"'),
     ],
     "livecontainer_refresh_settings.swift": [
+        ('if !lastError.isEmpty { Text(lastError).font(.caption).foregroundColor(.red) }',
+         'if !lastError.isEmpty { Text(localizedRefreshError(lastError)).font(.caption).foregroundColor(.red) }'),
         ('Section("Status")', 'Section("狀態")'),
         ('"Auto Refresh: \\(enabled ? "Enabled" : "Disabled")"', '"自動重新整理：\\(enabled ? "已啟用" : "已停用")"'),
         ('"Protection: \\(protection)"', '"保護：\\(protection)"'),
@@ -156,6 +158,31 @@ def main():
                 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)',
                 'Text(localizedRefreshState(result))',
             )
+            marker = "    private func notifyScheduleChanged() {"
+            helpers = '''    private func localizedRefreshError(_ raw: String) -> String {
+        var value = raw
+        let replacements: [(String, String)] = [
+            ("LNPerformActionErrorCode.localizedStringResource:", ""),
+            ("VPN Connection Error:", "VPN 連線錯誤："),
+            ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
+            ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),
+            ("Open LiveContainer and enable LocalDevVPN to continue refresh.", "請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"),
+            ("Refresh Failed", "重新整理失敗"),
+            ("Refresh Succeeded", "重新整理成功"),
+            ("Refresh Pending", "重新整理等待中"),
+            ("Refresh Running", "重新整理執行中"),
+            ("Failure", "失敗"),
+            ("Failed", "失敗"),
+            ("Unknown", "未知"),
+            ("Standard", "標準"),
+            ("Limited", "有限制")
+        ]
+        for (source, target) in replacements {
+            value = value.replacingOccurrences(of: source, with: target)
+        }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
             marker = "    private func notifyScheduleChanged() {"
             helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {

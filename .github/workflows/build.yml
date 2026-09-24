@@ -123,6 +123,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
+          # iOS 27 workaround: avoid the App Shortcut executor context used by
+          # RefreshAllIntent, which is known to fail with ADI -45061 while the
+          # same refresh succeeds from the SideStore UI.
+          python3 builder/scripts/patch_autorefresh_behavior.py work/LiveContainer
+          grep -Fq 'IOS27_INTENT_EXECUTOR_KIND=0' work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m
+          grep -Fq 'options.kind = 0;' work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m
+          grep -Fq 'options.kind = 2;' work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
@@ -130,6 +137,7 @@ jobs:
           python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer
           python3 builder/scripts/force_autorefresh_runtime_localization.py work/LiveContainer
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
+          clang -fsyntax-only -x objective-c -fobjc-arc -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -I work/LiveContainer/SideStoreSupport work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift

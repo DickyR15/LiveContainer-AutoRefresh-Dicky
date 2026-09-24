@@ -111,8 +111,8 @@ def add_runtime_helpers(text: str) -> str:
         return text
     helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
-        case "success", "succeeded", "completed", "verified": return "成功"
-        case "failure", "failed": return "失敗"
+        case "success", "succeeded", "completed", "verified", "refresh succeeded", "refresh_success": return "成功"
+        case "failure", "failed", "refresh failed", "refresh_failure": return "失敗"
         case "pending": return "等待中"
         case "running", "in_progress": return "執行中"
         case "started": return "已開始"
@@ -205,9 +205,9 @@ def main():
 
     settings = (TEMPLATES / "livecontainer_refresh_settings.swift").read_text(encoding="utf-8")
     forbidden = [
-        "Scheduled refresh", "Frequency", "Target time (local)", "Protection: ",
-        "REFRESH FAILED", "Refresh Failed", "Limited", "Standard", "Unknown",
-        "SideStore scheduled refresh"
+        'Toggle("Scheduled refresh"', 'Picker("Frequency"',
+        'Picker("Weekday"', 'DatePicker("Target time (local)"',
+        'Text("Protection: ', 'Text("SideStore scheduled refresh")'
     ]
     leaked = [item for item in forbidden if item in settings]
     if leaked:

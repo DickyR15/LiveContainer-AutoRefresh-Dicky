@@ -94,11 +94,9 @@ for root in ROOTS:
         old = s
         for a, b in REPLACEMENTS.items():
             s = s.replace(a, b)
-        # Localized UI must also translate runtime diagnostics stored in UserDefaults.
-        s = s.replace('Text(lastError)', 'Text(localizeRuntimeDiagnostic(lastError))')
-        s = s.replace('Text(error)', 'Text(localizeRuntimeDiagnostic(error))')
-        s = s.replace('Text(detail)', 'Text(localizeRuntimeDiagnostic(detail))')
-
+        # Runtime diagnostics are localized only inside the scheduled-refresh view,
+        # where the helper is defined. Do not inject a helper call into unrelated
+        # SideStore/LiveContainer files.
         # Dynamic status strings are generated at runtime, so static literal
         # replacement alone cannot localize them.
         if path.name == "livecontainer_refresh_settings.swift":

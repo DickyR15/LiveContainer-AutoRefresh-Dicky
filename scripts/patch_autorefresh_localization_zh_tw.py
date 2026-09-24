@@ -46,6 +46,11 @@ REPLACEMENTS = {
     ],
     "livecontainer_refresh_settings.swift": [
         ('Section("Status")', 'Section("狀態")'),
+        ('Text("Protection: \\(protection)")', 'Text("保護：\\(localizedProtection(protection))")'),
+        ('Toggle("Scheduled refresh"', 'Toggle("排程重新整理"'),
+        ('Picker("Frequency"', 'Picker("頻率"'),
+        ('Picker("Weekday"', 'Picker("星期"'),
+        ('DatePicker("Target time (local)"', 'DatePicker("目標時間（當地時間）"'),
         ('"Auto Refresh: \\(enabled ? "Enabled" : "Disabled")"', '"自動重新整理：\\(enabled ? "已啟用" : "已停用")"'),
         ('"Protection: \\(protection)"', '"保護：\\(protection)"'),
         ('"Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"', '"重新整理：\\(localizedRefreshState(healthState))"'),
@@ -87,13 +92,18 @@ def patch_navigation_generator():
         return
     text = generator.read_text(encoding="utf-8")
     before = text
-    text = text.replace(
-        'Text("SideStore scheduled refresh")',
-        'Text("SideStore 排程重新整理")',
-    )
+    generator_replacements = [
+        ('Text("SideStore scheduled refresh")', 'Text("SideStore 排程重新整理")'),
+        ('Toggle("Scheduled refresh"', 'Toggle("排程重新整理"'),
+        ('Picker("Frequency"', 'Picker("頻率"'),
+        ('Picker("Weekday"', 'Picker("星期"'),
+        ('DatePicker("Target time (local)"', 'DatePicker("目標時間（當地時間）"'),
+    ]
+    for old, new in generator_replacements:
+        text = text.replace(old, new)
     if text != before:
         generator.write_text(text, encoding="utf-8")
-        print(f"localized: {generator.name} navigation label")
+        print(f"localized: {generator.name} refresh UI labels")
 
 def add_runtime_helpers(text: str) -> str:
     marker = "    private func notifyScheduleChanged() {"

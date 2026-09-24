@@ -179,6 +179,49 @@ def main():
             raise SystemExit(f"no changes made: {name}")
         path.write_text(text, encoding="utf-8")
         print(f"localized: {name}")
+    # Final generated-source sweep: some strings are emitted by the pinned
+    # SideStore/minimuxer sources after the template pass. These are user-visible
+    # diagnostics, so patch the generated Swift too. Keep identifiers such as
+    # LocalDevVPN unchanged.
+    generated_replacements = {
+        '"Refresh Failed"': '"重新整理失敗"',
+        '"Refresh Succeeded"': '"重新整理成功"',
+        '"Refresh Pending"': '"重新整理等待中"',
+        '"Refresh Running"': '"重新整理執行中"',
+        '"Refresh Unknown"': '"重新整理狀態未知"',
+        '"Failure"': '"失敗"',
+        '"Failed"': '"失敗"',
+        '"Success"': '"成功"',
+        '"Completed"': '"已完成"',
+        '"Pending"': '"等待中"',
+        '"Running"': '"執行中"',
+        '"Unknown"': '"未知"',
+        '"VPN Connection Error:"': '"VPN 連線錯誤："',
+        '"No utun interface detected — LocalDevVPN is not connected"': '"未偵測到 utun 介面 — LocalDevVPN 尚未連線"',
+        '"Please make sure LocalDevVPN is connected and running properly."': '"請確認 LocalDevVPN 已連線並正常執行。"',
+        '"SideStore scheduled refresh"': '"SideStore 排程重新整理"',
+        '"Scheduled refresh"': '"排程重新整理"',
+        '"Frequency"': '"頻率"',
+        '"Target time (local)"': '"目標時間（當地時間）"',
+        '"Standard"': '"標準"',
+        '"Limited"': '"有限制"',
+        '"Enabled"': '"已啟用"',
+        '"Disabled"': '"已停用"',
+    }
+    for swift in ROOT.rglob("*.swift"):
+        if ".git" in swift.parts:
+            continue
+        try:
+            text = swift.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        before = text
+        for old, new in generated_replacements.items():
+            text = text.replace(old, new)
+        if text != before:
+            swift.write_text(text, encoding="utf-8")
+            print(f"localized generated Swift: {swift.relative_to(ROOT)}")
+
     print("Taiwan Traditional Chinese AutoRefresh localization: PASS")
 
 if __name__ == "__main__":

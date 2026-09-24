@@ -20,15 +20,10 @@ REPLACEMENTS = {
     "Every six hours": "每 6 小時",
     "Daily": "每天",
     "Weekly": "每週",
-    "SideStore scheduled refresh": "SideStore 排程重新整理",
-    "Scheduled refresh": "排程重新整理",
     "Refresh Schedule": "SideStore 排程重新整理",
     "Background Refresh": "背景重新整理",
     "Background App Refresh": "背景 App 重新整理",
-    "Target time (local)": "目標時間（當地時間）",
     "Preferred Time (Local)": "偏好時間（當地時間）",
-    "Frequency": "頻率",
-    "Every six hours": "每 6 小時",
     "Allow refresh notifications": "允許重新整理通知",
     "Enable optional deadline alarm": "啟用期限提醒",
     "Notification Permission": "通知權限",
@@ -77,7 +72,7 @@ for root in ROOTS:
         # Only replace exact Swift string literals. Never replace substrings
         # inside API/symbol names such as SecItemDelete or errSecSuccess.
         for source, target in REPLACEMENTS.items():
-            pattern = r'(["\\'])' + re.escape(source) + r'\\1'
+            pattern = r'(["\'])' + re.escape(source) + r'\1'
             text = re.sub(pattern, lambda m: m.group(1) + target + m.group(1), text)
         if text != old:
             path.write_text(text, encoding="utf-8")

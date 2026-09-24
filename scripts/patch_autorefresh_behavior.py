@@ -122,10 +122,9 @@ replace_once(
 )
 
 # The localization step runs before this script in the CI pipeline, so the
-# notification section may already be in its zh-TW form. Accept either the
-# clean upstream block or the already-localized functional equivalent.
-_SETTINGS = T / "livecontainer_refresh_settings.swift"
-_settings_text = _SETTINGS.read_text(encoding="utf-8")
+# notification section may already be in its zh-TW form. Accept either form.
+_settings_path = T / "livecontainer_refresh_settings.swift"
+_settings_text = _settings_path.read_text(encoding="utf-8")
 _upstream_warning = '''            Section("Warnings") {
                 Button("Allow refresh notifications") {
                     Task { @MainActor in await LiveContainerAutoRefreshScheduler.requestNotificationPermission(); LiveContainerAutoRefreshScheduler.schedule() }
@@ -167,10 +166,15 @@ if _localized_warning not in _settings_text:
     if _upstream_warning not in _settings_text:
         raise SystemExit("functional warning controls: neither upstream nor localized block found")
     _settings_text = _settings_text.replace(_upstream_warning, _localized_warning, 1)
-    _SETTINGS.write_text(_settings_text, encoding="utf-8")
+    _settings_path.write_text(_settings_text, encoding="utf-8")
     print("patched: functional warning controls")
 else:
     print("already patched: functional warning controls")
+
+# Apply the iOS 27 executor change to the actual LiveContainer checkout.
+if len(__import__("sys").argv) == 2:
+    patch_ios27_intent_runner(Path(__import__("sys").argv[1]).resolve())
+    print("patched: iOS 27 private intent executor")
 
 
 print("AutoRefresh behavior fixes: PASS")

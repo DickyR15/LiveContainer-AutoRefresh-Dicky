@@ -68,6 +68,9 @@ REPLACEMENTS = {
         ('Button("Enable optional deadline alarm")', 'Button("啟用期限提醒")'),
         ('"Warnings require permission. A deadline warning asks you to check an unconfirmed refresh; it cannot diagnose a task that never ran."', '"警告需要通知權限。期限提醒會要求你確認尚未驗證的重新整理；它無法判斷未執行的背景工作。"'),
         ('Section("Last result")', 'Section("上次結果")'),
+        ('Text(result.replacingOccurrences(of: "_", with: " ").capitalized)', 'Text(localizedRefreshHistoryValue(result))'),
+        ('Button("Select")', 'Button("選取")'),
+        ('"\\(selectedHistoryIDs.count) selected"', '"已選取 \\(selectedHistoryIDs.count) 筆"'),
         ('.navigationTitle("SideStore refresh")', '.navigationTitle("SideStore 重新整理")'),
         ('Button("Clear All", role: .destructive)', 'Button("全部清除", role: .destructive)'),
         ('Button("Cancel", role: .cancel)', 'Button("取消", role: .cancel)'),
@@ -143,6 +146,9 @@ def add_runtime_helpers(text: str) -> str:
         case "failure", "failed": return "失敗"
         case "pending": return "等待中"
         case "running", "in_progress": return "執行中"
+        case "started": return "已開始"
+        case "coalesced": return "已合併"
+        case "cancelled", "canceled": return "已取消"
         case "manual": return "手動"
         case "automatic", "scheduled", "background": return "自動"
         case "unknown": return "未知"
@@ -168,10 +174,16 @@ def add_runtime_helpers(text: str) -> str:
             ("Refresh Succeeded", "重新整理成功"),
             ("Refresh Pending", "重新整理等待中"),
             ("Refresh Running", "重新整理執行中"),
+            ("Refresh failed", "重新整理失敗"),
+            ("Refresh Failed", "重新整理失敗"),
             ("Failure", "失敗"),
             ("FAILURE", "失敗"),
             ("Failed", "失敗"),
             ("FAILED", "失敗"),
+            ("ADI native error", "ADI 原生錯誤"),
+            ("ADIOTPRequest failed", "ADIOTPRequest 要求失敗"),
+            ("Device not provisioned", "裝置尚未完成佈建"),
+            ("A refresh is already running. Wait for it to finish before retrying.", "重新整理正在執行中，請等待完成後再重試。"),
             ("Unknown", "未知"),
             ("UNKNOWN", "未知"),
             ("Standard", "標準"),

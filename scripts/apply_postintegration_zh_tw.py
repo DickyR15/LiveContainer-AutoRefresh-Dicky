@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import sys
+import re
 
 ROOTS = [Path(p) for p in sys.argv[1:]] or [Path("work/LiveContainer"), Path("work/EmbeddedSideStore")]
 
@@ -73,8 +74,11 @@ for root in ROOTS:
         except (UnicodeDecodeError, OSError):
             continue
         old = text
+        # Only replace exact Swift string literals. Never replace substrings
+        # inside API/symbol names such as SecItemDelete or errSecSuccess.
         for source, target in REPLACEMENTS.items():
-            text = text.replace(source, target)
+            pattern = r'(["\\u0027])' + re.escape(source) + r'\\1'
+            text = re.sub(pattern, lambda m: m.group(1) + target + m.group(1), text)
         if text != old:
             path.write_text(text, encoding="utf-8")
             changed_files += 1

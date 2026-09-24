@@ -4,6 +4,46 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 T = ROOT / "templates"
 
+def patch_ios27_intent_runner(root: Path) -> None:
+    """
+    iOS 27 workaround for the LiveProcess private App-Intent executor.
+
+    v3.0.2 launches RefreshAllAppsIntent through LNActionExecutorOptions with
+    kind=2 (App Shortcut). iOS 27 has a documented regression where that
+    execution path can return ADI -45061 while the same SideStore refresh
+    succeeds when initiated from the SideStore UI. Keep the upstream path on
+    older iOS versions, but use the generic executor kind on iOS 27+.
+    """
+    path = root / "SideStoreSupport/PrivateIntentRunner.m"
+    if not path.exists():
+        raise SystemExit(f"missing PrivateIntentRunner source: {path}")
+    text = path.read_text(encoding="utf-8")
+    old = '    options.kind = 2; // LNActionExecutorOptions kind: App Shortcut\n'
+    new = '''    if (@available(iOS 27.0, *)) {
+        // iOS 27: avoid the App Shortcut executor context used by the
+        // RefreshAllAppsIntent Shortcut path. Manual SideStore refresh uses
+        // a different context and succeeds on affected devices.
+        options.kind = 0;
+        NSLog(@"[AUTO_REFRESH] IOS27_INTENT_EXECUTOR_KIND=0");
+    } else {
+        options.kind = 2;
+    }
+'''
+    if "IOS27_INTENT_EXECUTOR_KIND=0" in text:
+        return
+    if text.count(old) != 1:
+        raise SystemExit(
+            "iOS27 intent runner patch: expected exactly one upstream kind=2 anchor, "
+            f"found {text.count(old)}"
+        )
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    verify = path.read_text(encoding="utf-8")
+    for required in ("@available(iOS 27.0, *)", "options.kind = 0;", "options.kind = 2;", "IOS27_INTENT_EXECUTOR_KIND=0"):
+        if required not in verify:
+            raise SystemExit(f"iOS27 intent runner verification failed: {required}")
+
+
 def replace_once(path, old, new, label):
     p = T / path
     s = p.read_text(encoding="utf-8")

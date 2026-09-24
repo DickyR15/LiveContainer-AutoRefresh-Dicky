@@ -108,7 +108,9 @@ def patch_navigation_generator():
 def add_runtime_helpers(text: str) -> str:
     marker = "    private func notifyScheduleChanged() {"
     if "private func localizedRefreshError" in text:
-        return text
+        start = text.index("    private func localizedRefreshError")
+        end = text.index(marker, start)
+        text = text[:start] + text[end:]
     helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
         case "success", "succeeded", "completed", "verified", "refresh succeeded", "refresh_success": return "成功"
@@ -151,7 +153,9 @@ def add_runtime_helpers(text: str) -> str:
     private func localizedRefreshError(_ raw: String) -> String {
         var value = raw
         let replacements: [(String, String)] = [
+            ("LNPerformActionErrorCodeLocalizedStringResource: VPN Connection Error:", "VPN 連線錯誤："),
             ("LNPerformActionErrorCode.localizedStringResource:", ""),
+            ("LNPerformActionErrorCodeLocalizedStringResource:", ""),
             ("VPN Connection Error:", "VPN 連線錯誤："),
             ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
             ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),

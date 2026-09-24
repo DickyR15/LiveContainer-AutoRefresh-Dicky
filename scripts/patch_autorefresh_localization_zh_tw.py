@@ -5,20 +5,6 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
 
 REPLACEMENTS = {
-    "combined_failure.swift": [
-        ('"The \\(operation) request was cancelled. Its result may need reconciliation."', '"\\(operation) 請求已取消。可能需要重新確認結果。"'),
-        ('"The \\(operation) request timed out during \\(stage.rawValue)."', '"\\(operation) 請求在 \\(stage.rawValue) 階段逾時。"'),
-        ('"Could not connect to the device through CoreDevice."', '"無法透過 CoreDevice 連線至裝置。"'),
-        ('"The CoreDevice tunnel could not be established."', '"無法建立 CoreDevice 通道。"'),
-        ('"Refresh completion could not be verified from the installation results."', '"無法從安裝結果驗證重新整理是否完成。"'),
-        ('"SideStore could not sign the application."', '"SideStore 無法簽名此 App。"'),
-        ('"Check LocalDevVPN and the device connection, then retry explicitly. This failure alone does not prove invalid pairing."', '"請檢查 LocalDevVPN 與裝置連線後再手動重試。僅憑此錯誤無法判定配對無效。"'),
-    ],
-    "livecontainer_network_preflight.swift": [
-        ('"LocalDevVPN activation did not return. Enable LocalDevVPN and retry refresh."', '"LocalDevVPN 啟用後未返回。請啟用 LocalDevVPN 後重試重新整理。"'),
-        ('"Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry."', '"啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。"'),
-        ('"Open LiveContainer and enable LocalDevVPN to continue refresh."', '"請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"'),
-    ],
     "v3_unified_shell.swift": [
         ('Button("Retry Connection")', 'Button("重新連線")'),
         ('Text("LiveContainer can notify you when a refresh starts, completes, or needs attention. Nothing runs differently if you skip this.")', 'Text("LiveContainer 可以在重新整理開始、完成或需要注意時通知你。略過此設定不會影響其他功能。")'),
@@ -59,13 +45,10 @@ REPLACEMENTS = {
         ('"Checked after a successful refresh"', '"成功重新整理後檢查"'),
     ],
     "livecontainer_refresh_settings.swift": [
-        ('Text(lastError)', 'Text(localizedRefreshError(lastError))'),
-        ('if !lastError.isEmpty { Text(lastError).font(.caption).foregroundColor(.red) }',
-         'if !lastError.isEmpty { Text(localizedRefreshError(lastError)).font(.caption).foregroundColor(.red) }'),
         ('Section("Status")', 'Section("狀態")'),
         ('"Auto Refresh: \\(enabled ? "Enabled" : "Disabled")"', '"自動重新整理：\\(enabled ? "已啟用" : "已停用")"'),
         ('"Protection: \\(protection)"', '"保護：\\(protection)"'),
-        ('"Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"', '"重新整理：\\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"'),
+        ('"Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"', '"重新整理：\\(localizedRefreshState(healthState))"'),
         ('"Background execution remains best-effort. A scheduled request is not a completed refresh."', '"背景執行會盡力進行。排程請求不代表重新整理已完成。"'),
         ('Button("Copy Refresh Diagnostics")', 'Button("複製重新整理診斷資訊")'),
         ('"The previous refresh result is uncertain. Automatic retries are paused. Review app status and expiration before explicitly retrying."', '"上次重新整理的結果不確定。自動重試已暫停。請先檢查 App 狀態與有效期限，再手動重試。"'),
@@ -91,76 +74,61 @@ REPLACEMENTS = {
         ('"Swipe right to reveal Delete, or use Select to delete several entries. Deleting history does not change refresh status or scheduled tasks."', '"向右滑動即可顯示刪除選項，也可以使用選取功能一次刪除多筆記錄。刪除歷史記錄不會變更重新整理狀態或排程工作。"'),
         ('Label("Delete", systemImage: "trash")', 'Label("刪除", systemImage: "trash")'),
         ('.accessibilityAction(named: Text("Delete"))', '.accessibilityAction(named: Text("刪除"))'),
-        ('"Refresh Failed"', '"重新整理失敗"'),
-        ('"Refresh Succeeded"', '"重新整理成功"'),
-        ('"Refresh Pending"', '"重新整理等待中"'),
-        ('"Refresh Running"', '"重新整理執行中"'),
-        ('"Refresh Unknown"', '"重新整理狀態未知"'),
-        ('"Scheduled refresh"', '"排程重新整理"'),
-        ('"Frequency"', '"頻率"'),
-        ('"Target time (local)"', '"目標時間（當地時間）"'),
-        ('"Standard"', '"標準"'),
-        ('"Limited"', '"有限制"'),
-        ('"Unknown"', '"未知"'),
-        ('"Enabled"', '"已啟用"'),
-        ('"Disabled"', '"已停用"'),
-        ('"Success"', '"成功"'),
-        ('"Failed"', '"失敗"'),
-        ('"Pending"', '"等待中"'),
-        ('"Running"', '"執行中"'),
-        ('"Completed"', '"已完成"'),
-        ('"Error"', '"錯誤"'),
-        ('"Permission required"', '"需要授權"'),
-        ('"Permission denied"', '"授權遭拒"'),
-        ('"Not configured"', '"尚未設定"'),
-        ('"Failure"', '"失敗"'),
-        ('"VPN Connection Error:"', '"VPN 連線錯誤："'),
-        ('"No utun interface detected — LocalDevVPN is not connected"', '"未偵測到 utun 介面 — LocalDevVPN 尚未連線"'),
-        ('"Please make sure LocalDevVPN is connected and running properly."', '"請確認 LocalDevVPN 已連線並正常執行。"'),
-        ('"Refresh Failed"', '"重新整理失敗"'),
-        ('"Refresh Succeeded"', '"重新整理成功"'),
-        ('"Refresh Pending"', '"重新整理等待中"'),
-        ('"Refresh Running"', '"重新整理執行中"'),
-        ('"LocalDevVPN"', '"LocalDevVPN"'),
-        ('"SideStore scheduled refresh"', '"SideStore 排程重新整理"'),
-
+        ('if !lastError.isEmpty { Text(lastError)', 'if !lastError.isEmpty { Text(localizedRefreshError(lastError))'),
+        ('Text(result.replacingOccurrences(of: "_", with: " ").capitalized)', 'Text(localizedRefreshState(result))'),
+        ('"\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")"', '"\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))"'),
+        ('Text("Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")', 'Text("重新整理：\\(localizedRefreshState(healthState))")'),
     ],
 }
 
-def main():
-    # The upstream integration script injects this navigation label after the
-    # template localization pass. Patch that exact source before integration.
+def patch_navigation_generator():
     generator = ROOT / "patch_livecontainer_autorefresh.py"
-    if generator.exists():
-        text = generator.read_text(encoding="utf-8")
-        before = text
-        text = text.replace(
-            'NavigationLink { LCEmbeddedSideStoreRefreshView() } label: { Text("SideStore scheduled refresh") }',
-            'NavigationLink { LCEmbeddedSideStoreRefreshView() } label: { Text("SideStore 排程重新整理") }',
-        )
-        if text != before:
-            generator.write_text(text, encoding="utf-8")
-            print("localized: patch_livecontainer_autorefresh.py injected label")
+    if not generator.exists():
+        return
+    text = generator.read_text(encoding="utf-8")
+    before = text
+    text = text.replace(
+        'Text("SideStore scheduled refresh")',
+        'Text("SideStore 排程重新整理")',
+    )
+    if text != before:
+        generator.write_text(text, encoding="utf-8")
+        print(f"localized: {generator.name} navigation label")
 
-    for name, replacements in REPLACEMENTS.items():
-        path = TEMPLATES / name
-        text = path.read_text(encoding="utf-8")
-        before = text
-        for old, new in replacements:
-            text = text.replace(old, new)
+def add_runtime_helpers(text: str) -> str:
+    marker = "    private func notifyScheduleChanged() {"
+    if "private func localizedRefreshError" in text:
+        return text
+    helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
+        switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
+        case "success", "succeeded", "completed", "verified": return "成功"
+        case "failure", "failed": return "失敗"
+        case "pending": return "等待中"
+        case "running", "in_progress": return "執行中"
+        case "started": return "已開始"
+        case "disabled": return "已停用"
+        case "enabled": return "已啟用"
+        case "unknown": return "未知"
+        case "expired": return "已逾期"
+        case "cancelled", "canceled": return "已取消"
+        default: return raw.replacingOccurrences(of: "_", with: " ")
+        }
+    }
 
-        # Dynamic refresh status and diagnostics are generated at runtime.
-        if name == "livecontainer_refresh_settings.swift":
-            text = text.replace(
-                '"Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)"',
-                '"重新整理：\\(localizedRefreshState(healthState))"',
-            )
-            text = text.replace(
-                'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)',
-                'Text(localizedRefreshState(result))',
-            )
-            marker = "    private func notifyScheduleChanged() {"
-            helpers = '''    private func localizedRefreshError(_ raw: String) -> String {
+    private func localizedRefreshHistoryValue(_ raw: String) -> String {
+        switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
+        case "success", "succeeded", "completed", "verified": return "成功"
+        case "failure", "failed": return "失敗"
+        case "pending": return "等待中"
+        case "running", "in_progress": return "執行中"
+        case "manual": return "手動"
+        case "automatic", "scheduled", "background": return "自動"
+        case "unknown": return "未知"
+        default: return raw.replacingOccurrences(of: "_", with: " ")
+        }
+    }
+
+    private func localizedRefreshError(_ raw: String) -> String {
         var value = raw
         let replacements: [(String, String)] = [
             ("LNPerformActionErrorCode.localizedStringResource:", ""),
@@ -168,6 +136,9 @@ def main():
             ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
             ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),
             ("Open LiveContainer and enable LocalDevVPN to continue refresh.", "請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"),
+            ("LocalDevVPN activation did not return. Enable LocalDevVPN and retry refresh.", "LocalDevVPN 啟用後未返回。請啟用 LocalDevVPN 後重試重新整理。"),
+            ("Wi-Fi is unavailable. Connect to Wi-Fi before refreshing.", "Wi-Fi 無法使用。請先連線 Wi-Fi，再重新整理。"),
+            ("Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry.", "啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。"),
             ("Refresh Failed", "重新整理失敗"),
             ("Refresh Succeeded", "重新整理成功"),
             ("Refresh Pending", "重新整理等待中"),
@@ -184,73 +155,28 @@ def main():
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-            marker = "    private func notifyScheduleChanged() {"
-            helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
-        switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
-        case "success", "succeeded", "completed": return "成功"
-        case "failure", "failed": return "失敗"
-        case "pending": return "等待中"
-        case "running": return "執行中"
-        case "started": return "已開始"
-        case "disabled": return "已停用"
-        case "enabled": return "已啟用"
-        case "unknown": return "未知"
-        default: return raw.replacingOccurrences(of: "_", with: " ")
-        }
-    }
-
 '''
-            if marker in text and "private func localizedRefreshState" not in text:
-                text = text.replace(marker, helpers + marker, 1)
+    if marker not in text:
+        raise SystemExit("runtime helper anchor not found in livecontainer_refresh_settings.swift")
+    return text.replace(marker, helpers + marker, 1)
 
-        if text == before:
-            raise SystemExit(f"no changes made: {name}")
-        path.write_text(text, encoding="utf-8")
-        print(f"localized: {name}")
-    # Final generated-source sweep: some strings are emitted by the pinned
-    # SideStore/minimuxer sources after the template pass. These are user-visible
-    # diagnostics, so patch the generated Swift too. Keep identifiers such as
-    # LocalDevVPN unchanged.
-    generated_replacements = {
-        '"Refresh Failed"': '"重新整理失敗"',
-        '"Refresh Succeeded"': '"重新整理成功"',
-        '"Refresh Pending"': '"重新整理等待中"',
-        '"Refresh Running"': '"重新整理執行中"',
-        '"Refresh Unknown"': '"重新整理狀態未知"',
-        '"Failure"': '"失敗"',
-        '"Failed"': '"失敗"',
-        '"Success"': '"成功"',
-        '"Completed"': '"已完成"',
-        '"Pending"': '"等待中"',
-        '"Running"': '"執行中"',
-        '"Unknown"': '"未知"',
-        '"VPN Connection Error:"': '"VPN 連線錯誤："',
-        '"No utun interface detected — LocalDevVPN is not connected"': '"未偵測到 utun 介面 — LocalDevVPN 尚未連線"',
-        '"Please make sure LocalDevVPN is connected and running properly."': '"請確認 LocalDevVPN 已連線並正常執行。"',
-        '"SideStore scheduled refresh"': '"SideStore 排程重新整理"',
-        '"Scheduled refresh"': '"排程重新整理"',
-        '"Frequency"': '"頻率"',
-        '"Target time (local)"': '"目標時間（當地時間）"',
-        '"Standard"': '"標準"',
-        '"Limited"': '"有限制"',
-        '"Enabled"': '"已啟用"',
-        '"Disabled"': '"已停用"',
-    }
-    for swift in ROOT.rglob("*.swift"):
-        if ".git" in swift.parts:
-            continue
-        try:
-            text = swift.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
+def main():
+    patch_navigation_generator()
+    for name, replacements in REPLACEMENTS.items():
+        path = TEMPLATES / name
+        if not path.exists():
+            raise SystemExit(f"missing localization template: {path}")
+        text = path.read_text(encoding="utf-8")
         before = text
-        for old, new in generated_replacements.items():
+        for old, new in replacements:
             text = text.replace(old, new)
-        if text != before:
-            swift.write_text(text, encoding="utf-8")
-            print(f"localized generated Swift: {swift.relative_to(ROOT)}")
-
-    print("Taiwan Traditional Chinese AutoRefresh localization: PASS")
+        if name == "livecontainer_refresh_settings.swift":
+            text = add_runtime_helpers(text)
+        if text == before:
+            raise SystemExit(f"no localization changes made: {name}")
+        path.write_text(text, encoding="utf-8")
+        print(f"localized template: {name}")
+    print("Taiwan Traditional Chinese AutoRefresh UI localization: PASS")
 
 if __name__ == "__main__":
     main()

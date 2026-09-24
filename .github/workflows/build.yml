@@ -124,13 +124,11 @@ jobs:
           set -euo pipefail
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
-          # iOS 27 workaround: force RefreshAllIntent into SideStore's main
-          # application process. This targets the process that owns the
-          # authenticated/provisioned signing state used by manual refresh.
-          python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py work/EmbeddedSideStore
-          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' 'work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
-          grep -Fq 'allowedExecutionTargets: IntentExecutionTargets' 'work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
-          grep -Fq '.main' 'work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
+          # iOS 27: open SideStore before executing the existing refresh action.
+          # Do not alter RefreshAllAppsIntent or introduce unsupported
+          # execution-target APIs.
+          grep -Fq 'IOS27_OPEN_APP_BEFORE_REFRESH' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
+          grep -Fq 'openAppWhenRun:openAppBeforeRefresh' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           test -s work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift

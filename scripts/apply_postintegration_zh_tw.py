@@ -117,6 +117,15 @@ def main():
             # First pass: exact user-visible Swift string literals only.
             text = replace_in_swift_string_literals(text)
 
+            # Ensure the settings screen also strips framework-generated
+            # prefixes from dynamically returned native error descriptions.
+            if "private func localizedRefreshError" in text:
+                text = text.replace(
+                    'value = raw\n',
+                    'value = raw\n        value = value.replacingOccurrences(of: "LNPerformActionErrorCodeLocalizedStringResource:", with: "")\n        value = value.replacingOccurrences(of: "LNPerformActionErrorCode.localizedStringResource:", with: "")\n',
+                    1,
+                )
+
             # Second pass: localize runtime/native descriptions that can contain
             # framework-generated prefixes or be assembled dynamically. This pass
             # operates only on known error-message fragments, never identifiers.

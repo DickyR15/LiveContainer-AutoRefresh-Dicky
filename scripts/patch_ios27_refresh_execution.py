@@ -40,7 +40,8 @@ def main() -> None:
         }
     }
 """
-    new = """    // iOS 27 workaround: execute RefreshAllAppsIntent directly inside the
+    new = """    // IOS27_DIRECT_REFRESH_INTENT
+    // iOS 27 workaround: execute RefreshAllAppsIntent directly inside the
     // SideStore/LiveProcess context instead of routing through LinkServices'
     // private LNAction executor. The latter is the path that can return
     // ADI -45061 while the same refresh succeeds from the SideStore UI.

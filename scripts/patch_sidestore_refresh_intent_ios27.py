@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_REFRESH_FOREGROUND_V1"
+MARKER = "DPORT_IOS27_MAIN_PROCESS_REFRESH_V2"
 
 def main():
     if len(sys.argv) != 2:
@@ -16,26 +16,30 @@ def main():
         print("already patched:", MARKER)
         return
 
-    anchor = '''    static let intentClassName = "RefreshAllIntent"
-
-    static var title: LocalizedStringResource = "Refresh All Apps"
+    anchor = '''    public static let intentClassName = "RefreshAllIntent"
+    
+    public static var title: LocalizedStringResource = "Refresh All Apps"
 '''
-    replacement = '''    static let intentClassName = "RefreshAllIntent"
-
-    // DPORT_IOS27_REFRESH_FOREGROUND_V1
-    // On iOS 27, the Shortcut/AppIntent can run while SideStore is completely
-    // suspended. In that state the refresh path can lack the authenticated
-    // SideStore process context and return ADI -45061. Opening SideStore first
-    // is a known workaround, so make the refresh intent foreground SideStore
-    // before perform() on iOS 27. Older iOS keeps the original background mode.
-    static var supportedModes: IntentModes {
-        if #available(iOS 27.0, *) {
-            return .foreground
-        }
-        return .background
+    if anchor not in text:
+        anchor = '''    public static let intentClassName = "RefreshAllIntent"
+    
+    public static var title: LocalizedStringResource = "Refresh All Apps"
+'''
+    replacement = '''    public static let intentClassName = "RefreshAllIntent"
+    
+    // DPORT_IOS27_MAIN_PROCESS_REFRESH_V2
+    // iOS 27 introduced execution-target selection for App Intents. The
+    // default target may execute the intent outside SideStore's main process,
+    // where its authenticated/provisioned state is unavailable and ADI can
+    // return -45061. Manual refresh runs in the main SideStore process.
+    // Pin this intent to the main app process on iOS 27+ so the automatic
+    // refresh uses the same process-owned signing state as manual refresh.
+    @available(iOS 27.0, *)
+    public static var allowedExecutionTargets: IntentExecutionTargets {
+        .main
     }
 
-    static var title: LocalizedStringResource = "Refresh All Apps"
+    public static var title: LocalizedStringResource = "Refresh All Apps"
 '''
     if text.count(anchor) != 1:
         raise SystemExit(f"expected one RefreshAllAppsIntent anchor, found {text.count(anchor)}")
@@ -43,10 +47,17 @@ def main():
     path.write_text(text, encoding="utf-8")
 
     verify = path.read_text(encoding="utf-8")
-    for required in ("DPORT_IOS27_REFRESH_FOREGROUND_V1", "static var supportedModes: IntentModes", "return .foreground", "return .background"):
+    for required in (
+        "DPORT_IOS27_MAIN_PROCESS_REFRESH_V2",
+        "@available(iOS 27.0, *)",
+        "public static var allowedExecutionTargets: IntentExecutionTargets",
+        ".main",
+    ):
         if required not in verify:
             raise SystemExit("verification failed: " + required)
-    print("iOS 27 SideStore foreground refresh workaround: PASS")
+    if "supportedModes" in verify and "DPORT_IOS27_REFRESH_FOREGROUND_V1" in verify:
+        raise SystemExit("old foreground workaround is still present; start from a clean source")
+    print("iOS 27 main-process refresh target: PASS")
 
 if __name__ == "__main__":
     main()

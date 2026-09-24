@@ -226,7 +226,21 @@ jobs:
             echo "English AutoRefresh UI strings remain after localization."
             exit 1
           fi
-          echo "Final zh-TW AutoRefresh UI localization: PASS"
+          SETTINGS="work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift"
+          test -f "$SETTINGS"
+          grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"
+          grep -Fq 'private func localizedRefreshError' "$SETTINGS"
+          grep -Fq 'LNPerformActionErrorCodeLocalizedStringResource:' "$SETTINGS"
+          grep -Fq 'VPN 連線錯誤：' "$SETTINGS"
+          grep -Fq '未偵測到 utun 介面' "$SETTINGS"
+          grep -Fq '請確認 LocalDevVPN 已連線並正常執行。' "$SETTINGS"
+          grep -Fq 'localizedRefreshHistoryValue(entry.values["source"]' "$SETTINGS"
+          grep -Fq 'localizedRefreshHistoryValue(entry.values["result"]' "$SETTINGS"
+          if grep -F -n 'entry.values["result"]?.capitalized' "$SETTINGS"; then
+            echo "English refresh history result formatting remains."
+            exit 1
+          fi
+          echo "Final zh-TW AutoRefresh UI and runtime error localization: PASS"
 
       - name: Build embedded SideStore
         shell: bash

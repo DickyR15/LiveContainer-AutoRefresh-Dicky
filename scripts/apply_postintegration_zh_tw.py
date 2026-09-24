@@ -104,7 +104,7 @@ for root in ROOTS:
         if path.name == "livecontainer_refresh_settings.swift":
             s = s.replace(
                 'Text("Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")',
-                'Text(localizedRefreshState(healthState))',
+                'Text("重新整理：\\(localizedRefreshState(healthState))")',
             )
             s = s.replace(
                 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)',
@@ -114,6 +114,7 @@ for root in ROOTS:
                 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")',
                 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")',
             )
+            marker = "    private func notifyScheduleChanged() {"
             helpers = '''    private func localizeRuntimeDiagnostic(_ raw: String) -> String {
         var value = raw
         let replacements: [(String, String)] = [
@@ -125,12 +126,13 @@ for root in ROOTS:
             ("Wi-Fi is unavailable. Connect to Wi-Fi before refreshing.", "Wi-Fi 無法使用。請先連線 Wi-Fi，再重新整理。"),
             ("Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry.", "啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。")
         ]
-        for (source, target) in replacements { value = value.replacingOccurrences(of: source, with: target) }
+        for (source, target) in replacements {
+            value = value.replacingOccurrences(of: source, with: target)
+        }
         return value
     }
 
-            marker = "    private func notifyScheduleChanged() {"
-            helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
+    private func localizedRefreshState(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {
         case "success", "succeeded", "completed": return "成功"
         case "failure", "failed": return "失敗"

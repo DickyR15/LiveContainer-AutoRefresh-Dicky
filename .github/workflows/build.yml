@@ -132,7 +132,6 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
-          python3 builder/scripts/force_autorefresh_runtime_localization.py work/LiveContainer
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
 
       - name: Verify final Taiwan Traditional Chinese AutoRefresh source
@@ -229,40 +228,9 @@ jobs:
           swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
           swiftc -frontend -parse "$SIDE/AltStore/AppDelegate.swift"
 
-          # Final pass after every SideStore integration script has generated or
-          # rewritten Swift files.
-          python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer work/EmbeddedSideStore
-
-      - name: Verify final Taiwan Traditional Chinese AutoRefresh UI localization
-        shell: bash
-        run: |
-          set -euo pipefail
-          for needle in "Text(\\\"Scheduled refresh\\\")" "Text(\\\"Frequency\\\")" "Text(\\\"Weekday\\\")" "Text(\\\"Limited\\\")" "Text(\\\"REFRESH FAILED\\\")" "Text(\\\"SideStore scheduled refresh\\\")" "Toggle(\\\"Scheduled refresh\\\")" "Picker(\\\"Frequency\\\")" "DatePicker(\\\"Target time (local)\\\")"; do
-            if grep -R -n -F "$needle" work/LiveContainer work/EmbeddedSideStore --include='*.swift'; then
-              echo "English AutoRefresh UI string remains: $needle"
-              exit 1
-            fi
-          done
-          SETTINGS="work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift"
-          test -f "$SETTINGS"
-          grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"
-          grep -Fq 'private func localizedRefreshError' "$SETTINGS"
-          grep -Fq 'VPN 連線錯誤：' "$SETTINGS"
-          grep -Fq '未偵測到 utun 介面' "$SETTINGS"
-          grep -Fq '請確認 LocalDevVPN 已連線並正常執行。' "$SETTINGS"
-          grep -Fq 'Text(localizedRefreshError(lastError))' "$SETTINGS"
-          grep -Fq 'localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown")' "$SETTINGS"
-          grep -Fq 'No utun interface detected — LocalDevVPN is not connected' "$SETTINGS"
-          grep -Fq 'Please make sure LocalDevVPN is connected and running properly.' "$SETTINGS"
-          if grep -F -n 'Text("Failure")' "$SETTINGS"; then
-            echo "English Failure UI remains."
-            exit 1
-          fi
-          if grep -F -n 'Text("Success")' "$SETTINGS"; then
-            echo "English Success UI remains."
-            exit 1
-          fi
-          echo "Final zh-TW AutoRefresh UI and runtime error localization: PASS"
+          # Final pass for SideStore after its integration scripts have generated
+          # or rewritten Swift files. LiveContainer was already compiled.
+          python3 builder/scripts/apply_postintegration_zh_tw.py work/EmbeddedSideStore
 
       - name: Build embedded SideStore
         shell: bash

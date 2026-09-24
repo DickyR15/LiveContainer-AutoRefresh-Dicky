@@ -43,7 +43,43 @@ REPLACEMENTS = {
     '"VPN Connection Error:"': '"VPN 連線錯誤："',
     '"No utun interface detected — LocalDevVPN is not connected"': '"未偵測到 utun 介面 — LocalDevVPN 尚未連線"',
     '"Please make sure LocalDevVPN is connected and running properly."': '"請確認 LocalDevVPN 已連線並正常執行。"',
+    '"Refresh Failed"': '"重新整理失敗"',
+    '"Refresh Succeeded"': '"重新整理成功"',
+    '"Refresh Pending"': '"重新整理等待中"',
+    '"Refresh Running"': '"重新整理執行中"',
+    '"SideStore scheduled refresh"': '"SideStore 排程重新整理"',
+    '"Scheduled refresh"': '"排程重新整理"',
+    '"Frequency"': '"頻率"',
+    '"Target time (local)"': '"目標時間（當地時間）"',
+    '"Failure"': '"失敗"',
+    '"Standard"': '"標準"',
+    '"Limited"': '"有限制"',
+    '"Unknown"': '"未知"',
+    '"Enabled"': '"已啟用"',
+    '"Disabled"': '"已停用"',
+    '"Success"': '"成功"',
+    '"Failed"': '"失敗"',
+    '"Pending"': '"等待中"',
+    '"Running"': '"執行中"',
+    '"Completed"': '"已完成"',
 }
+
+def localize_runtime_diagnostic(text: str) -> str:
+    replacements = [
+        ("VPN Connection Error:", "VPN 連線錯誤："),
+        ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
+        ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),
+        ("Open LiveContainer and enable LocalDevVPN to continue refresh.", "請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"),
+        ("LocalDevVPN activation did not return. Enable LocalDevVPN and retry refresh.", "LocalDevVPN 啟用後未返回。請啟用 LocalDevVPN 後重試重新整理。"),
+        ("Wi-Fi is unavailable. Connect to Wi-Fi before refreshing.", "Wi-Fi 無法使用。請先連線 Wi-Fi，再重新整理。"),
+        ("Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry.", "啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。"),
+        ("Refresh Failed", "重新整理失敗"),
+        ("Refresh Succeeded", "重新整理成功"),
+        ("Failure", "失敗"),
+    ]
+    for a, b in replacements:
+        text = text.replace(a, b)
+    return text
 
 changed = 0
 files = 0
@@ -58,6 +94,10 @@ for root in ROOTS:
         old = s
         for a, b in REPLACEMENTS.items():
             s = s.replace(a, b)
+        # Localized UI must also translate runtime diagnostics stored in UserDefaults.
+        s = s.replace('Text(lastError)', 'Text(localizeRuntimeDiagnostic(lastError))')
+        s = s.replace('Text(error)', 'Text(localizeRuntimeDiagnostic(error))')
+        s = s.replace('Text(detail)', 'Text(localizeRuntimeDiagnostic(detail))')
 
         # Dynamic status strings are generated at runtime, so static literal
         # replacement alone cannot localize them.
@@ -74,6 +114,21 @@ for root in ROOTS:
                 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")',
                 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")',
             )
+            helpers = '''    private func localizeRuntimeDiagnostic(_ raw: String) -> String {
+        var value = raw
+        let replacements: [(String, String)] = [
+            ("VPN Connection Error:", "VPN 連線錯誤："),
+            ("No utun interface detected — LocalDevVPN is not connected", "未偵測到 utun 介面 — LocalDevVPN 尚未連線"),
+            ("Please make sure LocalDevVPN is connected and running properly.", "請確認 LocalDevVPN 已連線並正常執行。"),
+            ("Open LiveContainer and enable LocalDevVPN to continue refresh.", "請開啟 LiveContainer 並啟用 LocalDevVPN，再繼續重新整理。"),
+            ("LocalDevVPN activation did not return. Enable LocalDevVPN and retry refresh.", "LocalDevVPN 啟用後未返回。請啟用 LocalDevVPN 後重試重新整理。"),
+            ("Wi-Fi is unavailable. Connect to Wi-Fi before refreshing.", "Wi-Fi 無法使用。請先連線 Wi-Fi，再重新整理。"),
+            ("Wi-Fi was lost while enabling LocalDevVPN. Reconnect and retry.", "啟用 LocalDevVPN 時 Wi-Fi 已中斷。請重新連線後重試。")
+        ]
+        for (source, target) in replacements { value = value.replacingOccurrences(of: source, with: target) }
+        return value
+    }
+
             marker = "    private func notifyScheduleChanged() {"
             helpers = '''    private func localizedRefreshState(_ raw: String) -> String {
         switch raw.replacingOccurrences(of: "_", with: " ").lowercased() {

@@ -86,7 +86,10 @@ REPLACEMENTS = {
         ('Text(localizedRefreshState(result))', 'Text(localizedRefreshState(result))'),
         ('"\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")"', '"\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))"'),
         ('Text("Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")', 'Text("重新整理：\\(localizedRefreshState(healthState))")'),
-    ],
+
+        ('Button("Select")', 'Button(isSelectingHistory ? "完成" : "選取")'),
+        ('Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")', 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'),
+        ('Text("ADI native error', 'Text("ADI 原生錯誤'),    ],
 }
 
 def patch_navigation_generator():

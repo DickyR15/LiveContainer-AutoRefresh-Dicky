@@ -9,10 +9,13 @@ def patch_ios27_intent_runner(root: Path) -> None:
     iOS 27 workaround for the LiveProcess private App-Intent executor.
 
     v3.0.2 launches RefreshAllAppsIntent through LNActionExecutorOptions with
-    kind=2 (App Shortcut). iOS 27 has a documented regression where that
-    execution path can return ADI -45061 while the same SideStore refresh
-    succeeds when initiated from the SideStore UI. Keep the upstream path on
-    older iOS versions, but use the generic executor kind on iOS 27+.
+    kind=2 (App Shortcut). On iOS 27 this path can return ADI -45061 even
+    though the same SideStore refresh succeeds from the SideStore UI. The
+    fix is deliberately small: keep the upstream implementation, but switch
+    only the executor context to the generic kind=0 on iOS 27+. Do not replace
+    the call with a direct AppIntent.perform() from LiveContainer; that runs in
+    the wrong process/context and reproduces the same Device-not-provisioned
+    failure.
     """
     path = root / "SideStoreSupport/PrivateIntentRunner.m"
     if not path.exists():

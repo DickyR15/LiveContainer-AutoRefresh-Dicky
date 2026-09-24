@@ -127,6 +127,12 @@ jobs:
           # use the generic LNAction executor context (kind=0) instead of the
           # App Shortcut context (kind=2), which is the path implicated in -45061.
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
+          # iOS 27 workaround: foreground SideStore before Refresh All Apps.
+          # This reproduces the known-working "open sidestore:// first" behavior
+          # without replacing SideStore's refresh pipeline.
+          python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py work/EmbeddedSideStore
+          grep -Fq 'DPORT_IOS27_REFRESH_FOREGROUND_V1' 'work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
+          grep -Fq 'return .foreground' 'work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           test -s work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift

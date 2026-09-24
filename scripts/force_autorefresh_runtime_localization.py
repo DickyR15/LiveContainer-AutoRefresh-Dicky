@@ -21,19 +21,20 @@ def main() -> None:
         fail(f"missing generated settings view: {path}")
     text = path.read_text(encoding="utf-8")
 
-    # Upstream AutoRefresh uses multiline SwiftUI formatting, so patch the
-    # actual UI call rather than assuming the whole if-block is one line.
-    text, n_error = re.subn(r'Text\\(lastError\\)', 'Text(localizedRefreshError(lastError))', text, count=1)
+    # Patch the actual SwiftUI calls. Whitespace/line breaks around these
+    # calls are irrelevant, so replace the exact expression itself.
+    error_token = "Text(lastError)"
+    n_error = text.count(error_token)
     if n_error != 1:
         fail(f"runtime error display: expected 1 Text(lastError) call, found {n_error}")
+    text = text.replace(error_token, "Text(localizedRefreshError(lastError))", 1)
 
-    # The history row is also multiline in the generated source. Match the
-    # actual interpolation expression and keep internal result tokens untouched.
-    history_pattern = r'Text\\("\\\\(entry\.values\["source"\]\?\.capitalized \?\? "Unknown"\\) - \\\\(entry\.values\["result"\]\?\.capitalized \?\? "Unknown"\\)"\\)'
-    history_replacement = 'Text("\\\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\\\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'
-    text, n_history = re.subn(history_pattern, history_replacement, text, count=1)
+    history_old = 'Text("\\(entry.values["source"]?.capitalized ?? "Unknown") - \\(entry.values["result"]?.capitalized ?? "Unknown")")'
+    history_new = 'Text("\\(localizedRefreshHistoryValue(entry.values["source"] ?? "Unknown")) - \\(localizedRefreshHistoryValue(entry.values["result"] ?? "Unknown"))")'
+    n_history = text.count(history_old)
     if n_history != 1:
-        fail(f"history result display: expected 1 history Text(...) call, found {n_history}")
+        fail(f"history result display: expected 1 exact history Text(...) call, found {n_history}")
+    text = text.replace(history_old, history_new, 1)
 
     marker = "    private func notifyScheduleChanged() {"
     if "private func localizedRefreshError" not in text:

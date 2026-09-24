@@ -99,6 +99,8 @@ for root in ROOTS:
         # SideStore/LiveContainer files.
         # Dynamic status strings are generated at runtime, so static literal
         # replacement alone cannot localize them.
+        s = s.replace('Text("SideStore scheduled refresh")', 'Text("SideStore 排程重新整理")')
+
         if path.name == "livecontainer_refresh_settings.swift":
             s = s.replace(
                 'Text("Refresh: \\(healthState.replacingOccurrences(of: "_", with: " ").capitalized)")',

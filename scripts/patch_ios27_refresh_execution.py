@@ -41,21 +41,13 @@ def main() -> None:
     }
 """
     new = """    // IOS27_DIRECT_REFRESH_INTENT
-    // iOS 27 workaround: execute RefreshAllAppsIntent directly inside the
-    // SideStore/LiveProcess context instead of routing through LinkServices'
-    // private LNAction executor. The latter is the path that can return
-    // ADI -45061 while the same refresh succeeds from the SideStore UI.
-    //
-    // Older iOS versions keep the upstream PrivateIntentRunner path.
+    // iOS 27 workaround: reuse the same in-process AppIntent.perform() path
+    // already used by SideStore when an IntentContext exists. This bypasses
+    // the private LiveProcess/App-Shortcut executor path that can return
+    // ADI -45061 on iOS 27 while manual SideStore refresh succeeds.
     func callRefreshIntent2(identifier: String, mangledTypeName: String, progressCallback: (Progress)->Void ) async throws {
         if #available(iOS 27.0, *) {
-            let resolvedType = try resolveType(mangledTypeName)
-            guard let intentType = resolvedType as? any ProgressReportingIntent.Type else {
-                throw SideStoreIntentError.typeIsNotAppIntent(mangledTypeName)
-            }
-            let intent = intentType.init()
-            progressCallback(intent.progress)
-            _ = try await intent.perform()
+            try await callRefreshIntent(mangledTypeName: mangledTypeName)
             return
         }
 

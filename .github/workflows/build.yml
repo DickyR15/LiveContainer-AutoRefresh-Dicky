@@ -90,7 +90,6 @@ jobs:
           cp builder/upstream-autorefresh/scripts/*.py builder/
           cp -R builder/upstream-autorefresh/scripts/templates builder/
           cp builder/scripts/adapt_sidestore_070_signing.py builder/adapt_sidestore_070_signing.py
-          cp scripts/apply_postintegration_zh_tw.py builder/scripts/apply_postintegration_zh_tw.py
           python3 builder/scripts/patch_autorefresh_localization_zh_tw.py
           swiftc -version
 
@@ -133,6 +132,7 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
+          python3 "$GITHUB_WORKSPACE/scripts/apply_postintegration_zh_tw.py" work/LiveContainer work/EmbeddedSideStore
 
       - name: Build LiveContainer host
         shell: bash

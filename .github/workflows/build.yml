@@ -222,10 +222,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -R -n -E 'Text\\("(Scheduled refresh|Frequency|Weekday|Limited|REFRESH FAILED|SideStore scheduled refresh)"\\)|Toggle\\("Scheduled refresh"|Picker\\("Frequency"|DatePicker\\("Target time \\(local\\)"' work/LiveContainer work/EmbeddedSideStore --include='*.swift'; then
-            echo "English AutoRefresh UI strings remain after localization."
-            exit 1
-          fi
+          for needle in "Text(\\\"Scheduled refresh\\\")" "Text(\\\"Frequency\\\")" "Text(\\\"Weekday\\\")" "Text(\\\"Limited\\\")" "Text(\\\"REFRESH FAILED\\\")" "Text(\\\"SideStore scheduled refresh\\\")" "Toggle(\\\"Scheduled refresh\\\")" "Picker(\\\"Frequency\\\")" "DatePicker(\\\"Target time (local)\\\")"; do
+            if grep -R -n -F "$needle" work/LiveContainer work/EmbeddedSideStore --include='*.swift'; then
+              echo "English AutoRefresh UI string remains: $needle"
+              exit 1
+            fi
+          done
           SETTINGS="work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift"
           test -f "$SETTINGS"
           grep -Fq 'private func localizedRefreshHistoryValue' "$SETTINGS"

@@ -121,16 +121,12 @@ replace_once(
     "notification permission status"
 )
 
-replace_once(
-    "livecontainer_refresh_settings.swift",
-    "import SwiftUI\nimport Foundation",
-    "import SwiftUI\nimport Foundation\nimport UIKit\nimport UserNotifications",
-    "refresh settings notification imports"
-)
-
-replace_once(
-    "livecontainer_refresh_settings.swift",
-    '''            Section("Warnings") {
+# The localization step runs before this script in the CI pipeline, so the
+# notification section may already be in its zh-TW form. Accept either the
+# clean upstream block or the already-localized functional equivalent.
+_SETTINGS = T / "livecontainer_refresh_settings.swift"
+_settings_text = _SETTINGS.read_text(encoding="utf-8")
+_upstream_warning = '''            Section("Warnings") {
                 Button("Allow refresh notifications") {
                     Task { @MainActor in await LiveContainerAutoRefreshScheduler.requestNotificationPermission(); LiveContainerAutoRefreshScheduler.schedule() }
                 }
@@ -141,8 +137,8 @@ replace_once(
                 }
                 Text("Warnings require permission. A deadline warning asks you to check an unconfirmed refresh; it cannot diagnose a task that never ran.")
                     .font(.caption).foregroundColor(.secondary)
-            }''',
-    '''            Section("Warnings") {
+            }'''
+_localized_warning = '''            Section("Warnings") {
                 Button("Allow refresh notifications") {
                     Task { @MainActor in
                         let status = await LiveContainerAutoRefreshScheduler.notificationAuthorizationStatus()
@@ -166,8 +162,15 @@ replace_once(
                 }
                 Text("Warnings require permission. A deadline warning asks you to check an unconfirmed refresh; it cannot diagnose a task that never ran.")
                     .font(.caption).foregroundColor(.secondary)
-            }''',
-    "functional warning controls"
-)
+            }'''
+if _localized_warning not in _settings_text:
+    if _upstream_warning not in _settings_text:
+        raise SystemExit("functional warning controls: neither upstream nor localized block found")
+    _settings_text = _settings_text.replace(_upstream_warning, _localized_warning, 1)
+    _SETTINGS.write_text(_settings_text, encoding="utf-8")
+    print("patched: functional warning controls")
+else:
+    print("already patched: functional warning controls")
+
 
 print("AutoRefresh behavior fixes: PASS")

@@ -133,6 +133,16 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
 
+      - name: Enforce final zh-TW localization for LiveContainer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer
+          if grep -R -n -E 'Text\\("(Scheduled refresh|Frequency|Weekday|Limited|REFRESH FAILED|SideStore scheduled refresh)"\\)|Toggle\\("Scheduled refresh"|Picker\\("Frequency"|DatePicker\\("Target time \\(local\\)"' work/LiveContainer --include='*.swift'; then
+            echo "English AutoRefresh UI strings remain in LiveContainer."
+            exit 1
+          fi
+
       - name: Build LiveContainer host
         shell: bash
         run: |
@@ -204,11 +214,19 @@ jobs:
           swiftc -frontend -parse "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
           swiftc -frontend -parse "$SIDE/AltStore/AppDelegate.swift"
 
-      - name: Apply final Taiwan Traditional Chinese AutoRefresh UI localization
+          # Final pass after every SideStore integration script has generated or
+          # rewritten Swift files.
+          python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer work/EmbeddedSideStore
+
+      - name: Verify final Taiwan Traditional Chinese AutoRefresh UI localization
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -R -n -E 'Text\\("(Scheduled refresh|Frequency|Limited|Unknown)"\\)|Text\\("SideStore scheduled refresh"\\)' work/LiveContainer work/EmbeddedSideStore --include='*.swift' || true
+          if grep -R -n -E 'Text\\("(Scheduled refresh|Frequency|Weekday|Limited|REFRESH FAILED|SideStore scheduled refresh)"\\)|Toggle\\("Scheduled refresh"|Picker\\("Frequency"|DatePicker\\("Target time \\(local\\)"' work/LiveContainer work/EmbeddedSideStore --include='*.swift'; then
+            echo "English AutoRefresh UI strings remain after localization."
+            exit 1
+          fi
+          echo "Final zh-TW AutoRefresh UI localization: PASS"
 
       - name: Build embedded SideStore
         shell: bash

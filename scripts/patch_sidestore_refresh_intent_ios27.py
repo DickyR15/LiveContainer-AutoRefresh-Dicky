@@ -91,7 +91,7 @@ extension RefreshAllAppsIntent
             {
                 if case let .failure(error) = result
                 {
-                    group.error = error
+                    group.context.error = error
                     return
                 }
             }
@@ -101,7 +101,7 @@ extension RefreshAllAppsIntent
 
         await group.activeTask?.value
 
-        if let error = group.error
+        if let error = group.context.error
         {
             throw error
         }

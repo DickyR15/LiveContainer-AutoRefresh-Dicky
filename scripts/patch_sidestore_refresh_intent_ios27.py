@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V3"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V4"
 
 
 def patch_manual_pipeline(root: Path) -> None:
@@ -107,6 +107,29 @@ extension RefreshAllAppsIntent
     if text.count(old2) != 1:
         raise SystemExit(f"refresh anchor: expected one match, found {text.count(old2)}")
     text = text.replace(old2, new2, 1)
+
+    # The original timeout branch toggles presentsFinishedNotification on
+    # BackgroundRefreshAppsOperation. The manual pipeline now returns
+    # RefreshGroup, so replace that background-refresh-only timeout behavior
+    # with foreground continuation only.
+    old3 = """                catch OperationError.timedOut
+                {
+                    // We took too long to finish and return the final result,
+                    // so we'll now present a normal notification when finished.
+                    let operation = await self.operationActor.operation
+                    operation?.presentsFinishedNotification = true
+                    
+                    try await self.requestToContinueInForeground()
+                }"""
+    new3 = """                catch OperationError.timedOut
+                {
+                    // RefreshGroup has no background-refresh finished-notification
+                    // property. Continue in the foreground without mutating it.
+                    try await self.requestToContinueInForeground()
+                }"""
+    if text.count(old3) != 1:
+        raise SystemExit(f"timeout anchor: expected one match, found {text.count(old3)}")
+    text = text.replace(old3, new3, 1)
 
     path.write_text(text, encoding="utf-8")
     verify = path.read_text(encoding="utf-8")

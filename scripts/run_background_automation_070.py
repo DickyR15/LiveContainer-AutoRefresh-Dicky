@@ -49,27 +49,29 @@ def install_compat(mod):
         section = text[start:end]
 
         if "let manualHistoryRunID" not in section:
-            signature = """    func refresh(_ installedApps: [InstalledApp],
+            signatures = [
+                """    func refresh(_ installedApps: [InstalledApp],
                  presentingViewController: UIViewController?,
-                 dbContext: NSManagedObjectContext? = nil,
-                 group: RefreshGroup? = nil) -> RefreshGroup"""
-            if section.count(signature) != 1:
-                mod.die(f"manual history signature: expected one anchor, found {section.count(signature)}")
-            section = section.replace(
-                signature,
+                 group: RefreshGroup? = nil) -> RefreshGroup""",
+                """    func refresh(_ installedApps: [InstalledApp], presentingViewController: UIViewController?, group: RefreshGroup? = nil) -> RefreshGroup""",
                 """    func refresh(_ installedApps: [InstalledApp],
                  presentingViewController: UIViewController?,
                  dbContext: NSManagedObjectContext? = nil,
-                 group: RefreshGroup? = nil,
-                 recordManualHistory: Bool = true) -> RefreshGroup""",
-                1,
+                 group: RefreshGroup? = nil) -> RefreshGroup""",
+            ]
+            signature = next((candidate for candidate in signatures if section.count(candidate) == 1), None)
+            if signature is None:
+                mod.die("manual history signature: no compatible refresh() signature found")
+            replacement = signature.replace(
+                "group: RefreshGroup? = nil) -> RefreshGroup",
+                "group: RefreshGroup? = nil,\n                 recordManualHistory: Bool = true) -> RefreshGroup",
             )
-
+            section = section.replace(signature, replacement, 1)
             detached = """        actualGroup.activeTask = Task.detached {
             do {
                 try await self.pipelineRunner.perform(installedApps.map { .refresh($0) }, handler: pipelineHandler, group: actualGroup)
             } catch {
-                actualGroup.error = error
+                actualGroup.context.error = error
                 let results = Dictionary(uniqueKeysWithValues: installedApps.map { ($0.bundleIdentifier, Result<InstalledApp, Error>.failure(error)) })
                 actualGroup.completionHandler?(results)
             }

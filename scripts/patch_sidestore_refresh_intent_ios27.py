@@ -16,33 +16,46 @@ def main():
         print("already patched:", MARKER)
         return
 
-    anchor = '''    public static let intentClassName = "RefreshAllIntent"
+    # SideStore 0.7.0 uses internal static members here. Older revisions used
+    # public static members. Accept both exact forms, but patch only once.
+    anchors = (
+        '''    static let intentClassName = "RefreshAllIntent"
+    
+    static var title: LocalizedStringResource = "Refresh All Apps"
+''',
+        '''    public static let intentClassName = "RefreshAllIntent"
     
     public static var title: LocalizedStringResource = "Refresh All Apps"
-'''
-    if anchor not in text:
-        anchor = '''    public static let intentClassName = "RefreshAllIntent"
-    
-    public static var title: LocalizedStringResource = "Refresh All Apps"
-'''
-    replacement = '''    public static let intentClassName = "RefreshAllIntent"
+''',
+    )
+
+    anchor = next((candidate for candidate in anchors if candidate in text), None)
+    if anchor is None:
+        raise SystemExit(
+            "expected one RefreshAllAppsIntent anchor, found 0; "
+            "inspect the pinned SideStore source before changing this patch"
+        )
+
+    if text.count(anchor) != 1:
+        raise SystemExit(
+            f"expected one RefreshAllAppsIntent anchor, found {text.count(anchor)}"
+        )
+
+    access = "public " if anchor.startswith("    public ") else ""
+    replacement = f'''    {access}static let intentClassName = "RefreshAllIntent"
     
     // DPORT_IOS27_MAIN_PROCESS_REFRESH_V2
-    // iOS 27 introduced execution-target selection for App Intents. The
-    // default target may execute the intent outside SideStore's main process,
-    // where its authenticated/provisioned state is unavailable and ADI can
-    // return -45061. Manual refresh runs in the main SideStore process.
-    // Pin this intent to the main app process on iOS 27+ so the automatic
-    // refresh uses the same process-owned signing state as manual refresh.
+    // iOS 27 introduced execution-target selection for App Intents. Keep the
+    // Refresh All Apps intent eligible for the main application execution
+    // target so its authenticated/provisioned SideStore state is available.
     @available(iOS 27.0, *)
-    public static var allowedExecutionTargets: IntentExecutionTargets {
+    {access}static var allowedExecutionTargets: IntentExecutionTargets {{
         .main
-    }
+    }}
 
-    public static var title: LocalizedStringResource = "Refresh All Apps"
+    {access}static var title: LocalizedStringResource = "Refresh All Apps"
 '''
-    if text.count(anchor) != 1:
-        raise SystemExit(f"expected one RefreshAllAppsIntent anchor, found {text.count(anchor)}")
+
     text = text.replace(anchor, replacement, 1)
     path.write_text(text, encoding="utf-8")
 
@@ -50,7 +63,7 @@ def main():
     for required in (
         "DPORT_IOS27_MAIN_PROCESS_REFRESH_V2",
         "@available(iOS 27.0, *)",
-        "public static var allowedExecutionTargets: IntentExecutionTargets",
+        "allowedExecutionTargets: IntentExecutionTargets",
         ".main",
     ):
         if required not in verify:

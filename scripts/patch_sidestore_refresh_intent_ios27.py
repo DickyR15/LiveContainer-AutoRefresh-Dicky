@@ -93,14 +93,20 @@ extension RefreshAllAppsIntent
                 presentingViewController: nil
             )
 
-            group.ignoresServerNotFoundError = false
             group.completionHandler = { results in
-                if let error = results.values.compactMap({
-                    if case .failure(let error) = $0 { return error }
-                    return nil
-                }).first
+                var firstError: Error?
+                for result in results.values
                 {
-                    continuation.resume(throwing: error)
+                    if case .failure(let error) = result
+                    {
+                        firstError = error
+                        break
+                    }
+                }
+
+                if let firstError
+                {
+                    continuation.resume(throwing: firstError)
                 }
                 else
                 {

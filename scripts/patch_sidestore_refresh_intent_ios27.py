@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V4"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V5"
 
 
 def patch_manual_pipeline(root: Path) -> None:
@@ -130,6 +130,12 @@ extension RefreshAllAppsIntent
     if text.count(old3) != 1:
         raise SystemExit(f"timeout anchor: expected one match, found {text.count(old3)}")
     text = text.replace(old3, new3, 1)
+
+    old4 = """    private let operationActor = OperationActor()
+    """
+    if text.count(old4) != 1:
+        raise SystemExit(f"operation actor property anchor: expected one match, found {text.count(old4)}")
+    text = text.replace(old4, "", 1)
 
     path.write_text(text, encoding="utf-8")
     verify = path.read_text(encoding="utf-8")

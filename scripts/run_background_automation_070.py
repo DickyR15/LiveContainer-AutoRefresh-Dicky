@@ -98,7 +98,7 @@ def install_compat(mod):
                     AutomaticRefreshHistory.record(.failed, runID: runID,
                         detail: error.localizedDescription, source: .manual)
                 }
-                actualGroup.error = error
+                actualGroup.context.error = error
                 let results = Dictionary(uniqueKeysWithValues: installedApps.map { ($0.bundleIdentifier, Result<InstalledApp, Error>.failure(error)) })
                 actualGroup.completionHandler?(results)
             }

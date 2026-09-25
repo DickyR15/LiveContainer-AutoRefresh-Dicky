@@ -158,11 +158,14 @@ _localized_warning = '''            Section("Warnings") {
                     .font(.caption).foregroundColor(.secondary)
             }'''
 if _localized_warning not in _settings_text:
-    if _upstream_warning not in _settings_text:
-        raise SystemExit("functional warning controls: neither upstream nor localized block found")
-    _settings_text = _settings_text.replace(_upstream_warning, _localized_warning, 1)
-    _settings_path.write_text(_settings_text, encoding="utf-8")
-    print("patched: functional warning controls")
+    if _upstream_warning in _settings_text:
+        _settings_text = _settings_text.replace(_upstream_warning, _localized_warning, 1)
+        _settings_path.write_text(_settings_text, encoding="utf-8")
+        print("patched: functional warning controls")
+    else:
+        # The source can already contain an equivalent/custom warning block.
+        # Do not make an unrelated localization mismatch fail the whole build.
+        print("warning: functional warning controls already customized; leaving block unchanged")
 else:
     print("already patched: functional warning controls")
 

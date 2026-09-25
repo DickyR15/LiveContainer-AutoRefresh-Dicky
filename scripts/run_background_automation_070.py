@@ -71,7 +71,7 @@ def install_compat(mod):
             do {
                 try await self.pipelineRunner.perform(installedApps.map { .refresh($0) }, handler: pipelineHandler, group: actualGroup)
             } catch {
-                actualGroup.context.error = error
+                actualGroup.error = error
                 let results = Dictionary(uniqueKeysWithValues: installedApps.map { ($0.bundleIdentifier, Result<InstalledApp, Error>.failure(error)) })
                 actualGroup.completionHandler?(results)
             }

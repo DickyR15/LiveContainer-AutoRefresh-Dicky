@@ -151,7 +151,7 @@ extension RefreshAllAppsIntent
         marker,
         "AppManager.shared.refresh(",
         "group.completionHandler = { results in",
-        "DPORT_IOS27_MANUAL_PIPELINE_V7",
+        "DPORT_IOS27_MANUAL_PIPELINE_V8",
         "presentingViewController: nil",
         "await group.activeTask?.value",
     ):

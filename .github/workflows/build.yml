@@ -201,7 +201,7 @@ jobs:
           rm -rf "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
           cp -R idevice/swift/IDevice.xcframework "$MUX/DeviceGateway/LocalBinary/IDevice.xcframework"
 
-          python3 builder/adapt_sidestore_070_pairing.py "$MUX"
+          # SideStore 0.7.0+ contains the current pairing parser; do not apply the legacy pairing adapter.
           python3 builder/adapt_sidestore_070_signing.py "$SIDE"
           python3 -m py_compile builder/patch_background_automation.py
           python3 builder/scripts/run_background_automation_070.py "$SIDE"

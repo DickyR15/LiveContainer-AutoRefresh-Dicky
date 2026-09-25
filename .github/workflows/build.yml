@@ -27,6 +27,10 @@ jobs:
     timeout-minutes: 90
 
     steps:
+      - name: Select Xcode 27 for iOS 27 App Intents
+        uses: maxim-lobanov/setup-xcode@v1.6.0
+        with:
+          xcode-version: "27"
       - name: Checkout builder
         uses: actions/checkout@v4
         with:
@@ -124,6 +128,9 @@ jobs:
           set -euo pipefail
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
           python3 builder/scripts/patch_autorefresh_behavior.py work/LiveContainer
+          # iOS 27: avoid the old PrivateIntentRunner execution path for the
+          # refresh intent when SideStore is loaded in LiveProcess.
+          python3 builder/scripts/patch_ios27_refresh_execution.py work/LiveContainer
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # iOS 27: open SideStore before executing the existing refresh action.
           # Do not alter RefreshAllAppsIntent or introduce unsupported
@@ -171,7 +178,13 @@ jobs:
           ! grep -Fq 'Text(result.replacingOccurrences(of: "_", with: " ").capitalized)' "$SETTINGS"
           ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           swiftc -frontend -parse "$SETTINGS"
-          echo "Pre-build AutoRefresh zh-TW source audit: PASS"
+          swiftc -frontend -parse work/LiveContainer/SideStoreSupport/SideStoreClient.swift
+          swiftc -frontend -parse work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          grep -Fq 'IOS27_DIRECT_REFRESH_INTENT' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
+          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          grep -Fq 'allowedExecutionTargets' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          grep -Fq '.main' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          echo "Pre-build AutoRefresh zh-TW + iOS27 execution-target audit: PASS"
 
       - name: Build LiveContainer host
         shell: bash
@@ -221,6 +234,10 @@ jobs:
 
           python3 builder/adapt_sidestore_070_pairing.py "$MUX"
           python3 builder/adapt_sidestore_070_signing.py "$SIDE"
+          # iOS 27: force RefreshAllAppsIntent into the main LiveContainer/
+          # SideStore process so it uses the same authenticated signing state
+          # as a manual refresh instead of an arbitrary App Intent target.
+          python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
           python3 -m py_compile builder/patch_background_automation.py
           python3 builder/scripts/run_background_automation_070.py "$SIDE"
           python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"

@@ -231,13 +231,12 @@ jobs:
 
           python3 builder/adapt_sidestore_070_pairing.py "$MUX"
           python3 builder/adapt_sidestore_070_signing.py "$SIDE"
-          # iOS 27: force RefreshAllAppsIntent into the main LiveContainer/
-          # SideStore process so it uses the same authenticated signing state
-          # as a manual refresh instead of an arbitrary App Intent target.
-          python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
           python3 -m py_compile builder/patch_background_automation.py
           python3 builder/scripts/run_background_automation_070.py "$SIDE"
           python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
+          # iOS 27: apply this AFTER SideStore integration generation because
+          # that generator can rewrite RefreshAllAppsIntent.swift.
+          python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
           python3 builder/patch_local_idevice_package.py "$MUX"
 
           # SideStore 0.7.0 is intentionally built without the newer private AuthManager

@@ -2,168 +2,23 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V8"
+MARKER = "DPORT_IOS27_MAIN_PROCESS_REFRESH_V9"
 
 
 def patch_manual_pipeline(root: Path) -> None:
+    # Keep SideStore's upstream RefreshAllAppsIntent implementation intact.
+    # The latest develop/nightly contains the session-level delegate fix that
+    # is important for iOS 27 ADI/Anisette requests. Our customization only
+    # selects the main SideStore process; replacing backgroundRefresh() with
+    # AppManager.refresh() creates a different execution/signing path and can
+    # reproduce -45061 even when manual refresh works.
     path = root / "AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
     text = path.read_text(encoding="utf-8")
-    marker = "DPORT_IOS27_MANUAL_PIPELINE_V8"
-    if marker in text:
-        print("already patched:", marker)
-        return
-
-    # Use the same AppManager.refresh() pipeline as the manual SideStore
-    # Refresh button. The manual pipeline returns RefreshGroup, not
-    # BackgroundRefreshAppsOperation, so do not use background-refresh-only
-    # properties such as presentsFinishedNotification.
-    old = """@available(iOS 17.0, tvOS 17.0, *)
-extension RefreshAllAppsIntent
-{
-    private actor OperationActor
-    {
-        private(set) var operation: BackgroundRefreshAppsOperation?
-        
-        func set(_ operation: BackgroundRefreshAppsOperation?)
-        {
-            self.operation = operation
-        }
-    }
-}"""
-    new = """@available(iOS 17.0, tvOS 17.0, *)
-extension RefreshAllAppsIntent
-{
-}"""
-    if text.count(old) != 1:
-        raise SystemExit(f"operation actor anchor: expected one match, found {text.count(old)}")
-    text = text.replace(old, new, 1)
-
-    old2 = """        try await withCheckedThrowingContinuation { continuation in
-            let operation = try? AppManager.shared.backgroundRefresh(installedApps, presentsNotifications: self.presentsNotifications) { (result) in
-                do
-                {
-                    let results = try result.get()
-                    
-                    for (_, result) in results
-                    {
-                        guard case let .failure(error) = result else { continue }
-                        throw error
-                    }
-                    
-                    continuation.resume()
-                }
-                catch OperationError.noInstalledApps
-                {
-                    continuation.resume()
-                }
-                catch
-                {
-                    continuation.resume(throwing: error)
-                }
-            }
-            
-            guard let operation else {
-                debugLog("[RefreshAllAppsIntent] backgroundRefresh instance is nil")
-                return 
-            }
-            
-            operation.ignoresServerNotFoundError = false
-            
-            self.progress.addChild(operation.progress, withPendingUnitCount: 1)
-            
-            Task {
-                await self.operationActor.set(operation)
-            }
-        }"""
-    new2 = """
-        // DPORT_IOS27_MANUAL_PIPELINE_V8
-        // The intent is already pinned to SideStore's main execution target
-        // (allowedExecutionTargets = .main) and openAppWhenRun is enabled.
-        // Calling requestToContinueInForeground() immediately from perform()
-        // causes AppIntents.AppIntentError(1) on iOS 27 before refresh starts.
-        // Only request foreground continuation from the existing timeout path.
-        //
-        // Use the same AppManager.refresh() pipeline as the manual SideStore
-        // Refresh button. Avoid CheckedContinuation here because Xcode 27
-        // Swift 6 can fail to diagnose this continuation expression when the
-        // callback carries CoreData-backed values.
-        let group = AppManager.shared.refresh(
-            installedApps,
-            presentingViewController: nil
-        )
-
-        group.completionHandler = { results in
-            for (_, result) in results
-            {
-                if case let .failure(error) = result
-                {
-                    group.context.error = error
-                    return
-                }
-            }
-        }
-
-        self.progress.addChild(group.progress, withPendingUnitCount: 1)
-
-        await group.activeTask?.value
-
-        if let error = group.context.error
-        {
-            throw error
-        }
-"""
-    if text.count(old2) != 1:
-        raise SystemExit(f"refresh anchor: expected one match, found {text.count(old2)}")
-    text = text.replace(old2, new2, 1)
-
-    # The original timeout branch toggles presentsFinishedNotification on
-    # BackgroundRefreshAppsOperation. The manual pipeline now returns
-    # RefreshGroup, so replace that background-refresh-only timeout behavior
-    # with foreground continuation only.
-    old3 = """                catch OperationError.timedOut
-                {
-                    // We took too long to finish and return the final result,
-                    // so we'll now present a normal notification when finished.
-                    let operation = await self.operationActor.operation
-                    operation?.presentsFinishedNotification = true
-                    
-                    try await self.requestToContinueInForeground()
-                }"""
-    new3 = """                catch OperationError.timedOut
-                {
-                    // RefreshGroup has no background-refresh finished-notification
-                    // property. Continue in the foreground without mutating it.
-                    try await self.requestToContinueInForeground()
-                }"""
-    if text.count(old3) != 1:
-        raise SystemExit(f"timeout anchor: expected one match, found {text.count(old3)}")
-    text = text.replace(old3, new3, 1)
-
-    old4 = """    private let operationActor = OperationActor()
-    """
-    if text.count(old4) != 1:
-        raise SystemExit(f"operation actor property anchor: expected one match, found {text.count(old4)}")
-    text = text.replace(old4, "", 1)
-
-    path.write_text(text, encoding="utf-8")
-    verify = path.read_text(encoding="utf-8")
-    for required in (
-        marker,
-        "AppManager.shared.refresh(",
-        "group.completionHandler = { results in",
-        "DPORT_IOS27_MANUAL_PIPELINE_V8",
-        "presentingViewController: nil",
-        "await group.activeTask?.value",
-    ):
-        if required not in verify:
-            raise SystemExit("manual pipeline verification failed: " + required)
-    if "AppManager.shared.backgroundRefresh(installedApps" in verify:
-        raise SystemExit("backgroundRefresh path still present in RefreshAllAppsIntent")
-    if "presentsFinishedNotification" in verify:
-        raise SystemExit("background-refresh-only presentsFinishedNotification still present")
-    if "operationActor" in verify:
-        raise SystemExit("obsolete OperationActor reference still present")
-    print("iOS 27 manual SideStore refresh pipeline V3: PASS")
+    if "AppManager.shared.backgroundRefresh(installedApps" not in text:
+        raise SystemExit("upstream RefreshAllAppsIntent backgroundRefresh path is missing")
+    if "DPORT_IOS27_MANUAL_PIPELINE_V8" in text:
+        raise SystemExit("obsolete manual-pipeline V8 patch is present")
+    print("iOS 27 upstream refresh pipeline preserved: PASS")
 
 
 def main():

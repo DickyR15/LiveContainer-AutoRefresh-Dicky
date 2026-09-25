@@ -2,7 +2,89 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MAIN_PROCESS_REFRESH_V2"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V1"
+
+
+def patch_manual_pipeline(root: Path) -> None:
+    path = root / "AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
+    text = path.read_text(encoding="utf-8")
+    marker = "DPORT_IOS27_MANUAL_PIPELINE_V1"
+    if marker in text:
+        print("already patched:", marker)
+        return
+
+    old = """        try await withCheckedThrowingContinuation { continuation in
+            let operation = try? AppManager.shared.backgroundRefresh(installedApps, presentsNotifications: self.presentsNotifications) { (result) in
+                do
+                {
+                    let results = try result.get()
+                    
+                    for (_, result) in results
+                    {
+                        guard case let .failure(error) = result else { continue }
+                        throw error
+                    }
+                    
+                    continuation.resume()
+                }
+                catch OperationError.noInstalledApps
+                {
+                    continuation.resume()
+                }
+                catch
+                {
+                    continuation.resume(throwing: error)
+                }
+            }
+            
+            guard let operation else {
+                debugLog("[RefreshAllAppsIntent] backgroundRefresh instance is nil")
+                return 
+            }
+            
+            operation.ignoresServerNotFoundError = false
+            
+            self.progress.addChild(operation.progress, withPendingUnitCount: 1)
+            
+            Task {
+                await self.operationActor.set(operation)
+            }
+        }"""
+    new = """        try await withCheckedThrowingContinuation { continuation in
+            // DPORT_IOS27_MANUAL_PIPELINE_V1
+            // iOS 27 returns ADI -45061 from the AppIntent/backgroundRefresh
+            // path even when the same account/device refreshes successfully
+            // from inside SideStore. Reuse AppManager.refresh(), which is the
+            // authenticated pipeline used by the manual Refresh button.
+            let group = AppManager.shared.refresh(
+                installedApps,
+                presentingViewController: nil
+            ) { results in
+                for (_, result) in results
+                {
+                    guard case let .failure(error) = result else { continue }
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume()
+            }
+
+            group.ignoresServerNotFoundError = false
+            self.progress.addChild(group.progress, withPendingUnitCount: 1)
+
+            Task {
+                await self.operationActor.set(nil)
+            }
+        }"""
+    if text.count(old) != 1:
+        raise SystemExit(f"manual pipeline anchor: expected one match, found {text.count(old)}")
+    text = text.replace(old, new, 1)
+    path.write_text(text, encoding="utf-8")
+    verify = path.read_text(encoding="utf-8")
+    for required in (marker, "AppManager.shared.refresh(", "presentingViewController: nil"):
+        if required not in verify:
+            raise SystemExit("manual pipeline verification failed: " + required)
+    print("iOS 27 manual SideStore refresh pipeline: PASS")
 
 def main():
     if len(sys.argv) != 2:
@@ -79,6 +161,7 @@ def main():
             raise SystemExit("verification failed: " + required)
     if "supportedModes" in verify and "DPORT_IOS27_REFRESH_FOREGROUND_V1" in verify:
         raise SystemExit("old foreground workaround is still present; start from a clean source")
+    patch_manual_pipeline(root)
     print("iOS 27 main-process refresh target: PASS")
 
 if __name__ == "__main__":

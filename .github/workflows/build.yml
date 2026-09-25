@@ -175,11 +175,12 @@ jobs:
           ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           swiftc -frontend -parse "$SETTINGS"
           swiftc -frontend -parse work/LiveContainer/SideStoreSupport/SideStoreClient.swift
-          swiftc -frontend -parse work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          INTENT='work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
+          swiftc -frontend -parse "$INTENT"
           grep -Fq 'IOS27_DIRECT_REFRESH_INTENT' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
-          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
-          grep -Fq 'allowedExecutionTargets' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
-          grep -Fq '.main' work/EmbeddedSideStore/AltStore/Intents/App\\ Intents/RefreshAllAppsIntent.swift
+          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' "$INTENT"
+          grep -Fq 'allowedExecutionTargets' "$INTENT"
+          grep -Fq '.main' "$INTENT"
           echo "Pre-build AutoRefresh zh-TW + iOS27 execution-target audit: PASS"
 
       - name: Build LiveContainer host

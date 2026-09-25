@@ -127,16 +127,23 @@ def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else "work/EmbeddedSideStore").resolve()
     mod.patch_app_delegate(root)
     mod.patch_scene_delegate(root)
-    try:
-        mod.patch_background_operation(root)
-    except SystemExit as exc:
-        message = str(exc)
-        if not (
-            message.startswith("background operation verification failed:")
-            and ("AUTH_PREFLIGHT_PASS" in message or "hasPasswordCredentials" in message)
-        ):
-            raise
-        print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
+    background = root / "SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
+    background_text = background.read_text(encoding="utf-8")
+    if "let group = AppManager.shared.refresh(apps, presentingViewController: nil)" in background_text:
+        # SideStore 0.7.0+ already uses the upstream AppManager.refresh() path.
+        # Do not reapply the older V30 patch, which expects obsolete anchors.
+        print("background operation: upstream 0.7.0 refresh pipeline already present; skipped legacy patch")
+    else:
+        try:
+            mod.patch_background_operation(root)
+        except SystemExit as exc:
+            message = str(exc)
+            if not (
+                message.startswith("background operation verification failed:")
+                and ("AUTH_PREFLIGHT_PASS" in message or "hasPasswordCredentials" in message)
+            ):
+                raise
+            print("background operation verification: skipped optional AUTH_PREFLIGHT diagnostics")
 
     mod.patch_manual_refresh(root)
     mod.patch_info_plist(root)

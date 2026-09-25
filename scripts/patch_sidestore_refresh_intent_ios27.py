@@ -44,6 +44,13 @@ def main():
     access = "public " if anchor.startswith("    public ") else ""
     replacement = f'''    {access}static let intentClassName = "RefreshAllIntent"
     
+    // DPORT_IOS27_MAIN_PROCESS_REFRESH_V3
+    // Force the containing SideStore process to be opened before the intent
+    // executes. iOS 27 has reports where Refresh All Apps launched from
+    // Shortcuts cannot access the same authenticated/provisioned runtime state
+    // unless SideStore is already alive.
+    static var openAppWhenRun = true
+
     // DPORT_IOS27_MAIN_PROCESS_REFRESH_V2
     // iOS 27 introduced execution-target selection for App Intents. Keep the
     // Refresh All Apps intent eligible for the main application execution
@@ -62,6 +69,8 @@ def main():
     verify = path.read_text(encoding="utf-8")
     for required in (
         "DPORT_IOS27_MAIN_PROCESS_REFRESH_V2",
+        "DPORT_IOS27_MAIN_PROCESS_REFRESH_V3",
+        "static var openAppWhenRun = true",
         "@available(iOS 27.0, *)",
         "allowedExecutionTargets: IntentExecutionTargets",
         ".main",

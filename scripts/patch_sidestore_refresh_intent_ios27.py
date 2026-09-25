@@ -2,13 +2,13 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V6"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V7"
 
 
 def patch_manual_pipeline(root: Path) -> None:
     path = root / "AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
     text = path.read_text(encoding="utf-8")
-    marker = "DPORT_IOS27_MANUAL_PIPELINE_V6"
+    marker = "DPORT_IOS27_MANUAL_PIPELINE_V7"
     if marker in text:
         print("already patched:", marker)
         return
@@ -76,7 +76,12 @@ extension RefreshAllAppsIntent
             }
         }"""
     new2 = """
-        // DPORT_IOS27_MANUAL_PIPELINE_V6
+        // DPORT_IOS27_MANUAL_PIPELINE_V7
+        // Force the intent into the main SideStore process before touching
+        // AppManager/ADI state. On iOS 27 the shortcut execution context can
+        // otherwise lack the same authenticated runtime used by manual refresh.
+        try await self.requestToContinueInForeground()
+
         // Use the same AppManager.refresh() pipeline as the manual SideStore
         // Refresh button. Avoid CheckedContinuation here because Xcode 27
         // Swift 6 can fail to diagnose this continuation expression when the

@@ -2,13 +2,13 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V5"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V6"
 
 
 def patch_manual_pipeline(root: Path) -> None:
     path = root / "AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
     text = path.read_text(encoding="utf-8")
-    marker = "DPORT_IOS27_MANUAL_PIPELINE_V3"
+    marker = "DPORT_IOS27_MANUAL_PIPELINE_V6"
     if marker in text:
         print("already patched:", marker)
         return
@@ -75,35 +75,37 @@ extension RefreshAllAppsIntent
                 await self.operationActor.set(operation)
             }
         }"""
-    new2 = """        try await withCheckedThrowingContinuation { continuation in
-            // DPORT_IOS27_MANUAL_PIPELINE_V3
-            // Reuse the exact AppManager.refresh() pipeline used by the
-            // manual SideStore Refresh button. This avoids the separate
-            // backgroundRefresh/ADI execution path used by the original
-            // App Intent on iOS 27.
-            let group = AppManager.shared.refresh(
-                installedApps,
-                presentingViewController: nil
-            )
+    new2 = """
+        // DPORT_IOS27_MANUAL_PIPELINE_V6
+        // Use the same AppManager.refresh() pipeline as the manual SideStore
+        // Refresh button. Avoid CheckedContinuation here because Xcode 27
+        // Swift 6 can fail to diagnose this continuation expression when the
+        // callback carries CoreData-backed values.
+        let group = AppManager.shared.refresh(
+            installedApps,
+            presentingViewController: nil
+        )
 
-            group.completionHandler = { results in
-                for (_, result) in results
+        group.completionHandler = { results in
+            for (_, result) in results
+            {
+                if case let .failure(error) = result
                 {
-                    switch result
-                    {
-                    case .success:
-                        continue
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                        return
-                    }
+                    group.error = error
+                    return
                 }
-
-                continuation.resume()
             }
+        }
 
-            self.progress.addChild(group.progress, withPendingUnitCount: 1)
-        }"""
+        self.progress.addChild(group.progress, withPendingUnitCount: 1)
+
+        await group.activeTask?.value
+
+        if let error = group.error
+        {
+            throw error
+        }
+"""
     if text.count(old2) != 1:
         raise SystemExit(f"refresh anchor: expected one match, found {text.count(old2)}")
     text = text.replace(old2, new2, 1)
@@ -143,7 +145,9 @@ extension RefreshAllAppsIntent
         marker,
         "AppManager.shared.refresh(",
         "group.completionHandler = { results in",
+        "DPORT_IOS27_MANUAL_PIPELINE_V6",
         "presentingViewController: nil",
+        "await group.activeTask?.value",
     ):
         if required not in verify:
             raise SystemExit("manual pipeline verification failed: " + required)

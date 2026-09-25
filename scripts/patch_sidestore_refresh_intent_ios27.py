@@ -2,19 +2,21 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V2"
+MARKER = "DPORT_IOS27_MANUAL_PIPELINE_V3"
 
 
 def patch_manual_pipeline(root: Path) -> None:
     path = root / "AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
     text = path.read_text(encoding="utf-8")
-    marker = "DPORT_IOS27_MANUAL_PIPELINE_V2"
+    marker = "DPORT_IOS27_MANUAL_PIPELINE_V3"
     if marker in text:
         print("already patched:", marker)
         return
 
-    # The App Intent must use the same AppManager.refresh() pipeline as the
-    # manual SideStore Refresh button. Do not call backgroundRefresh() here.
+    # Use the same AppManager.refresh() pipeline as the manual SideStore
+    # Refresh button. The manual pipeline returns RefreshGroup, not
+    # BackgroundRefreshAppsOperation, so do not use background-refresh-only
+    # properties such as presentsFinishedNotification.
     old = """@available(iOS 17.0, tvOS 17.0, *)
 extension RefreshAllAppsIntent
 {
@@ -31,15 +33,6 @@ extension RefreshAllAppsIntent
     new = """@available(iOS 17.0, tvOS 17.0, *)
 extension RefreshAllAppsIntent
 {
-    private actor OperationActor
-    {
-        private(set) var operation: RefreshGroup?
-        
-        func set(_ operation: RefreshGroup?)
-        {
-            self.operation = operation
-        }
-    }
 }"""
     if text.count(old) != 1:
         raise SystemExit(f"operation actor anchor: expected one match, found {text.count(old)}")
@@ -83,42 +76,33 @@ extension RefreshAllAppsIntent
             }
         }"""
     new2 = """        try await withCheckedThrowingContinuation { continuation in
-            // DPORT_IOS27_MANUAL_PIPELINE_V2
+            // DPORT_IOS27_MANUAL_PIPELINE_V3
             // Reuse the exact AppManager.refresh() pipeline used by the
-            // manual SideStore Refresh button. This creates its authenticated
-            // context and PipelineRunner operation instead of the separate
-            // backgroundRefresh/ADI path used by the original intent.
+            // manual SideStore Refresh button. This avoids the separate
+            // backgroundRefresh/ADI execution path used by the original
+            // App Intent on iOS 27.
             let group = AppManager.shared.refresh(
                 installedApps,
                 presentingViewController: nil
             )
 
             group.completionHandler = { results in
-                var firstError: Error?
-                for result in results.values
+                for (_, result) in results
                 {
-                    if case .failure(let error) = result
+                    switch result
                     {
-                        firstError = error
-                        break
+                    case .success:
+                        continue
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                        return
                     }
                 }
 
-                if let firstError
-                {
-                    continuation.resume(throwing: firstError)
-                }
-                else
-                {
-                    continuation.resume()
-                }
+                continuation.resume()
             }
 
             self.progress.addChild(group.progress, withPendingUnitCount: 1)
-
-            Task {
-                await self.operationActor.set(group)
-            }
         }"""
     if text.count(old2) != 1:
         raise SystemExit(f"refresh anchor: expected one match, found {text.count(old2)}")
@@ -130,13 +114,18 @@ extension RefreshAllAppsIntent
         marker,
         "AppManager.shared.refresh(",
         "group.completionHandler = { results in",
-        "operation: RefreshGroup?",
+        "presentingViewController: nil",
     ):
         if required not in verify:
             raise SystemExit("manual pipeline verification failed: " + required)
     if "AppManager.shared.backgroundRefresh(installedApps" in verify:
         raise SystemExit("backgroundRefresh path still present in RefreshAllAppsIntent")
-    print("iOS 27 manual SideStore refresh pipeline V2: PASS")
+    if "presentsFinishedNotification" in verify:
+        raise SystemExit("background-refresh-only presentsFinishedNotification still present")
+    if "operationActor" in verify:
+        raise SystemExit("obsolete OperationActor reference still present")
+    print("iOS 27 manual SideStore refresh pipeline V3: PASS")
+
 
 def main():
     if len(sys.argv) != 2:
@@ -150,8 +139,6 @@ def main():
         print("already patched:", MARKER)
         return
 
-    # SideStore 0.7.0 uses internal static members here. Older revisions used
-    # public static members. Accept both exact forms, but patch only once.
     anchors = (
         '''    static let intentClassName = "RefreshAllIntent"
     
@@ -215,6 +202,7 @@ def main():
         raise SystemExit("old foreground workaround is still present; start from a clean source")
     patch_manual_pipeline(root)
     print("iOS 27 main-process refresh target: PASS")
+
 
 if __name__ == "__main__":
     main()

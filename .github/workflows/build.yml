@@ -175,13 +175,8 @@ jobs:
           ! grep -Fq 'entry.values["result"]?.capitalized' "$SETTINGS"
           swiftc -frontend -parse "$SETTINGS"
           swiftc -frontend -parse work/LiveContainer/SideStoreSupport/SideStoreClient.swift
-          INTENT='work/EmbeddedSideStore/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift'
-          swiftc -frontend -parse "$INTENT"
           grep -Fq 'IOS27_DIRECT_REFRESH_INTENT' work/LiveContainer/SideStoreSupport/SideStoreClient.swift
-          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' "$INTENT"
-          grep -Fq 'allowedExecutionTargets' "$INTENT"
-          grep -Fq '.main' "$INTENT"
-          echo "Pre-build AutoRefresh zh-TW + iOS27 execution-target audit: PASS"
+          echo "Pre-build AutoRefresh zh-TW + iOS27 LiveContainer audit: PASS"
 
       - name: Build LiveContainer host
         shell: bash
@@ -237,6 +232,11 @@ jobs:
           # iOS 27: apply this AFTER SideStore integration generation because
           # that generator can rewrite RefreshAllAppsIntent.swift.
           python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
+          INTENT="$SIDE/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
+          swiftc -frontend -parse "$INTENT"
+          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' "$INTENT"
+          grep -Fq 'allowedExecutionTargets' "$INTENT"
+          grep -Fq '.main' "$INTENT"
           python3 builder/patch_local_idevice_package.py "$MUX"
 
           # SideStore 0.7.0 is intentionally built without the newer private AuthManager

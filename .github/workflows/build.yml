@@ -92,6 +92,9 @@ jobs:
           test "$(git -C work/EmbeddedSideStore/Dependencies/SideSign rev-parse HEAD)" = "$SIDESIGN_REF"
           cp builder/upstream-autorefresh/scripts/*.py builder/
           cp -R builder/upstream-autorefresh/scripts/templates builder/
+          mkdir -p builder/scripts
+          cp scripts/patch_auth_session_recovery.py builder/scripts/patch_auth_session_recovery.py
+          cp scripts/patch_refresh_1100_retry.py builder/scripts/patch_refresh_1100_retry.py
           cp builder/scripts/adapt_sidestore_070_signing.py builder/adapt_sidestore_070_signing.py
           swiftc -version
 
@@ -133,7 +136,6 @@ jobs:
           # Apple API session token. Validate the token and transparently
           # re-authenticate from the user's stored SideStore credentials.
           python3 builder/scripts/patch_auth_session_recovery.py work/EmbeddedSideStore
-          python3 builder/scripts/patch_refresh_1100_retry.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # iOS 27: open SideStore before executing the existing refresh action.
           # Do not alter RefreshAllAppsIntent or introduce unsupported

@@ -125,6 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
+          python3 builder/patch_sidestore_version_display.py work/LiveContainer
           python3 builder/scripts/patch_autorefresh_behavior.py work/LiveContainer
           # iOS 27: avoid the old PrivateIntentRunner execution path for the
           # refresh intent when SideStore is loaded in LiveProcess.

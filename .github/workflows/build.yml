@@ -205,7 +205,7 @@ jobs:
           python3 builder/adapt_sidestore_070_signing.py "$SIDE"
           python3 -m py_compile builder/patch_background_automation.py
           python3 builder/scripts/run_background_automation_070.py "$SIDE"
-          python3 builder/patch_sidestore_integration.py "$MUX" "$SIDE"
+          # SideStore 0.7.0+ already contains the current CoreDevice integration; skip the legacy patch.
           # iOS 27: apply this AFTER SideStore integration generation because
           # that generator can rewrite RefreshAllAppsIntent.swift.
           python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"

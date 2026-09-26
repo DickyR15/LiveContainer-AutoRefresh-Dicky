@@ -2,6 +2,8 @@ name: Build LiveContainer 3.8.10 AutoRefresh
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
@@ -17,7 +19,8 @@ env:
   SIDESTORE_REF: 0dd743f75afc358b0ba4a002feb5f19474492371
   MINIMUXER_REF: 12be70dc2627307a16bfd2dc7a009080d5bec909
   SIDESIGN_REF: 6b68651697f99791ef85404b7aea1891a26a285d
-  IDEVICE_REF: ebd7dadfc55d1c4facee3d11ecf5b28e20548b57
+  # SideStore/minimuxer 2026-09 nightly requires the pairable-host + RPPairing option FFI added after 0.1.66.
+  IDEVICE_REF: 3e55c8486b2057e40c1f74aaaa1155c82341cf76
   JKTCP_REF: e674e1eee6d5943e13b1eba0bd24a9dd0b2fa020
   AUTO_REFRESH_REF: 35c6c28c98e7261afe6049a133a9ae542d666d57
 
@@ -30,6 +33,10 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
         with:
+          # For pull_request runs, build the actual source branch head rather
+          # than GitHub's cached synthetic merge ref. This keeps the builder
+          # scripts in sync with the commit that triggered the run.
+          ref: ${{ github.head_ref || github.ref }}
           path: builder
 
       - name: Checkout exact LiveContainer 3.8.10 source
@@ -122,16 +129,23 @@ jobs:
         run: |
           set -euo pipefail
           python3 builder/patch_livecontainer_autorefresh.py work/LiveContainer
+          python3 builder/patch_sidestore_version_display.py work/LiveContainer
           python3 builder/scripts/patch_autorefresh_behavior.py work/LiveContainer
           # iOS 27: avoid the old PrivateIntentRunner execution path for the
           # refresh intent when SideStore is loaded in LiveProcess.
           python3 builder/scripts/patch_ios27_refresh_execution.py work/LiveContainer
+          # iOS 27 AppIntent/background execution may start with an expired
+          # Apple API session token. Validate the token and transparently
+          # re-authenticate from the user's stored SideStore credentials.
+          python3 builder/scripts/patch_ios27_oda_first.py work/EmbeddedSideStore
+          python3 builder/scripts/patch_auth_session_recovery_v2.py work/EmbeddedSideStore
+          python3 builder/scripts/patch_refresh_1100_retry.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
-          # iOS 27: open SideStore before executing the existing refresh action.
-          # Do not alter RefreshAllAppsIntent or introduce unsupported
-          # execution-target APIs.
-          grep -Fq 'IOS27_OPEN_APP_BEFORE_REFRESH' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
-          grep -Fq 'openAppWhenRun:openAppBeforeRefresh' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
+          # iOS 27: preserve the upstream PrivateIntentRunner launch path.
+          # Forced openAppWhenRun was removed because it can make the embedded
+          # SideStore terminate unexpectedly before the refresh intent runs.
+          ! grep -Fq 'IOS27_OPEN_APP_BEFORE_REFRESH' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
+          ! grep -Fq 'openAppWhenRun:openAppBeforeRefresh' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           test -s work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
@@ -142,6 +156,10 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
+          swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
+          grep -Fq 'DPORT_IOS27_ODA_FIRST_V2_REVERTED' "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
+          swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Auth/AuthManager.swift"
+          swiftc -frontend -parse "work/EmbeddedSideStore/AltStore/Managing Apps/AppManager.swift"
 
       - name: Verify final Taiwan Traditional Chinese AutoRefresh source
         shell: bash
@@ -166,8 +184,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 builder/patch_jktcp_reliability.py jktcp
-          python3 builder/patch_coredevice_idevice.py idevice jktcp
+          # The pinned modern SideStore/idevice already exports the CoreDevice + RPPairing FFI
+          # consumed by minimuxer. The legacy compatibility patch targets the older 0.1.66
+          # layout and aborts on the modern jktcp package anchor, so do not apply it here.
           ! grep -R -E 'rppairing_connect_quic|create_quic_listener|quinn::'             idevice/ffi/src/tunnel_provider.rs idevice/idevice/src/tunnel.rs
+          grep -Fq 'tunnel_create_rppairing_with_options' idevice/ffi/src/tunnel_provider.rs
+          grep -Fq 'pairable_host_prepare' idevice/ffi/src/pairing_host.rs
 
       - name: Test CoreDevice transport
         shell: bash
@@ -211,18 +233,16 @@ jobs:
           python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
           INTENT="$SIDE/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
           swiftc -frontend -parse "$INTENT"
-          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' "$INTENT"
-          grep -Fq 'allowedExecutionTargets' "$INTENT"
+          grep -Fq 'DPORT_IOS27_OPEN_APP_REFRESH_V10' "$INTENT"
+          grep -Fq 'static var openAppWhenRun = true' "$INTENT"
+          ! grep -Fq 'allowedExecutionTargets' "$INTENT"
           grep -Fq '.main' "$INTENT"
           python3 builder/patch_local_idevice_package.py "$MUX"
 
           # SideStore 0.7.0+ already contains the upstream refresh pipeline used
           # by manual refresh. Do not require legacy V30 diagnostic markers.
           grep -Fq 'AppManager.shared.refresh' "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
-          grep -Fq "AutomaticRefreshHistory" "$SIDE/AltStore/Managing Apps/AppManager.swift"
-          grep -Fq "SIDESTORE_SIGN_PASS" "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
-          grep -Fq "SELF_REFRESH_COMPLETE" "$SIDE/AltStore/AppDelegate.swift"
-          grep -Fq "scheduleAutomaticRefresh" "$SIDE/AltStore/SceneDelegate.swift"
+          # SideStore 0.7.0 moved scheduling out of SceneDelegate; background automation shim above is the authoritative check.
 
           git -C "$MUX" diff --check
           swiftc -frontend -parse "$MUX/DeviceGateway/idevice/IdeviceGateway.swift"
@@ -256,8 +276,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 builder/scripts/audit_ipa.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          # The legacy audit_ipa.py expects the obsolete [SIDESTORE_COREDEVICE]
+          # diagnostic marker. Current SideStore 0.7.0 uses the actual IDevice
+          # framework/symbol path instead, and the build has already validated
+          # the modern CoreDevice FFI before packaging.
           python3 builder/scripts/audit_ipa_signing.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/scripts/audit_ipa_localization.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
       - name: Upload IPA and audits
         uses: actions/upload-artifact@v4

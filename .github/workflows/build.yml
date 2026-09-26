@@ -136,6 +136,7 @@ jobs:
           python3 builder/scripts/patch_refresh_1100_retry.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # iOS 27: open SideStore before executing the existing refresh action.
+          # Build retry checkpoint: auth-session recovery marker V4.
           # Do not alter RefreshAllAppsIntent or introduce unsupported
           # execution-target APIs.
           grep -Fq 'IOS27_OPEN_APP_BEFORE_REFRESH' 'work/LiveContainer/SideStoreSupport/PrivateIntentRunner.m'

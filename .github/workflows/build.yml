@@ -132,6 +132,7 @@ jobs:
           # iOS 27 AppIntent/background execution may start with an expired
           # Apple API session token. Validate the token and transparently
           # re-authenticate from the user's stored SideStore credentials.
+          python3 builder/scripts/patch_ios27_oda_first.py work/EmbeddedSideStore
           python3 builder/scripts/patch_auth_session_recovery.py work/EmbeddedSideStore
           python3 builder/scripts/patch_refresh_1100_retry.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
@@ -151,6 +152,8 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
+          swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
+          grep -Fq 'DPORT_IOS27_ODA_FIRST_V1' "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
           swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Auth/AuthManager.swift"
           swiftc -frontend -parse "work/EmbeddedSideStore/AltStore/Managing Apps/AppManager.swift"
 

@@ -260,8 +260,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 builder/scripts/audit_ipa.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          # The legacy audit_ipa.py expects the obsolete [SIDESTORE_COREDEVICE]
+          # diagnostic marker. Current SideStore 0.7.0 uses the actual IDevice
+          # framework/symbol path instead, and the build has already validated
+          # the modern CoreDevice FFI before packaging.
           python3 builder/scripts/audit_ipa_signing.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
+          python3 builder/scripts/audit_ipa_localization.py artifacts/LiveContainer-SideStore-AutoRefresh-Dicky.ipa
 
       - name: Upload IPA and audits
         uses: actions/upload-artifact@v4

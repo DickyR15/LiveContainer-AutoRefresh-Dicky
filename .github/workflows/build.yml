@@ -33,6 +33,10 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
         with:
+          # For pull_request runs, build the actual source branch head rather
+          # than GitHub's cached synthetic merge ref. This keeps the builder
+          # scripts in sync with the commit that triggered the run.
+          ref: ${{ github.head_ref || github.ref }}
           path: builder
 
       - name: Checkout exact LiveContainer 3.8.10 source

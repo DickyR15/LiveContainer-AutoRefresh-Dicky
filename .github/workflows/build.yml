@@ -92,9 +92,6 @@ jobs:
           test "$(git -C work/EmbeddedSideStore/Dependencies/SideSign rev-parse HEAD)" = "$SIDESIGN_REF"
           cp builder/upstream-autorefresh/scripts/*.py builder/
           cp -R builder/upstream-autorefresh/scripts/templates builder/
-          mkdir -p builder/scripts
-          cp scripts/patch_auth_session_recovery.py builder/scripts/patch_auth_session_recovery.py
-          cp scripts/patch_refresh_1100_retry.py builder/scripts/patch_refresh_1100_retry.py
           cp builder/scripts/adapt_sidestore_070_signing.py builder/adapt_sidestore_070_signing.py
           swiftc -version
 

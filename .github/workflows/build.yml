@@ -229,8 +229,9 @@ jobs:
           python3 builder/scripts/patch_sidestore_refresh_intent_ios27.py "$SIDE"
           INTENT="$SIDE/AltStore/Intents/App Intents/RefreshAllAppsIntent.swift"
           swiftc -frontend -parse "$INTENT"
-          grep -Fq 'DPORT_IOS27_MAIN_PROCESS_REFRESH_V2' "$INTENT"
-          grep -Fq 'allowedExecutionTargets' "$INTENT"
+          grep -Fq 'DPORT_IOS27_OPEN_APP_REFRESH_V10' "$INTENT"
+          grep -Fq 'static var openAppWhenRun = true' "$INTENT"
+          ! grep -Fq 'allowedExecutionTargets' "$INTENT"
           grep -Fq '.main' "$INTENT"
           python3 builder/patch_local_idevice_package.py "$MUX"
 

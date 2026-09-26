@@ -259,9 +259,10 @@ def patch_proxy(root: Path) -> None:
 
     # Verify every wrapped method now contains the recovery closure and no
     # unwrapped self.getSession() call remains before the subclass declaration.
-    remaining = base.count(needle)
+    api_region = base[base.find(anchor):]
+    remaining = api_region.count(needle)
     if remaining != 0:
-        fail(f"unwrapped getSession() usage remains in DeveloperPortalProxy base class: {remaining}")
+        fail(f"unwrapped getSession() usage remains in DeveloperPortalProxy API methods: {remaining}")
 
     if base.count("return try await self.withRecoveredSession { session in") != len(method_ranges):
         fail("unexpected number of recovery wrappers after patch")

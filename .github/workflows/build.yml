@@ -169,8 +169,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 builder/patch_jktcp_reliability.py jktcp
-          python3 builder/patch_coredevice_idevice.py idevice jktcp
+          # The pinned modern SideStore/idevice already exports the CoreDevice + RPPairing FFI
+          # consumed by minimuxer. The legacy compatibility patch targets the older 0.1.66
+          # layout and aborts on the modern jktcp package anchor, so do not apply it here.
           ! grep -R -E 'rppairing_connect_quic|create_quic_listener|quinn::'             idevice/ffi/src/tunnel_provider.rs idevice/idevice/src/tunnel.rs
+          grep -Fq 'tunnel_create_rppairing_with_options' idevice/ffi/src/tunnel_provider.rs
+          grep -Fq 'pairable_host_prepare' idevice/ffi/src/pairing_host.rs
 
       - name: Test CoreDevice transport
         shell: bash

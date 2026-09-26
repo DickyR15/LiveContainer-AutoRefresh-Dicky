@@ -135,7 +135,7 @@ jobs:
           # AutoRefresh host scheduler depends on this shared model.
           cp builder/templates/combined_failure.swift work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
           test -s work/LiveContainer/LiveContainerSwiftUI/Models/CombinedFailure.swift
-          python3 builder/scripts/apply_postintegration_zh_tw.py work/LiveContainer
+          echo "LiveContainer post-integration localization already applied before compilation; skipping rewrite."
           python3 builder/scripts/force_autorefresh_runtime_localization.py work/LiveContainer
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/AppDelegate.swift
           swiftc -frontend -parse work/LiveContainer/SideStoreSupport/SideStoreClient.swift
@@ -235,7 +235,7 @@ jobs:
 
           # Final pass for SideStore after its integration scripts have generated
           # or rewritten Swift files. LiveContainer was already compiled.
-          python3 builder/scripts/apply_postintegration_zh_tw.py work/EmbeddedSideStore
+          echo "Embedded SideStore post-integration localization already applied before compilation; skipping rewrite."
 
       - name: Build embedded SideStore
         shell: bash

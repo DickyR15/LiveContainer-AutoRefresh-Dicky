@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V2"
+MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V3"
 
 def fail(message: str) -> None:
     raise SystemExit("patch_auth_session_recovery: " + message)

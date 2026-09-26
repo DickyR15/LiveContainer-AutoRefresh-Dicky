@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_REFRESH_1100_RETRY_V1"
+MARKER = "DPORT_REFRESH_1100_RETRY_V2"
 
 def fail(message: str) -> None:
     raise SystemExit("patch_refresh_1100_retry: " + message)
@@ -50,8 +50,8 @@ def main() -> None:
                         throw error
                     }
 
-                    debugLog("[AppManager] Apple API 1100 detected during refresh; forcing fresh authentication and retrying once.")
-                    _ = try await AuthManager.shared.forceReauthenticateForRefresh()
+                    debugLog("[AppManager] Apple API 1100 detected during refresh; forcing Developer Services re-authentication and retrying once.")
+                    _ = try await AuthManager.shared.getAuthenticatedSession()
                     try await self.pipelineRunner.perform(installedApps.map { .refresh($0) }, handler: pipelineHandler, group: actualGroup)
                     debugLog("[AppManager] Refresh retry after Apple API 1100 completed.")
                 }
@@ -72,7 +72,7 @@ def main() -> None:
     for required in (
         MARKER,
         "AuthManager.shared.getAuthenticatedSession()",
-        "AuthManager.shared.forceReauthenticateForRefresh()",
+        "AuthManager.shared.getAuthenticatedSession()",
         "Apple API 1100 detected during refresh",
         "Refresh retry after Apple API 1100 completed.",
     ):

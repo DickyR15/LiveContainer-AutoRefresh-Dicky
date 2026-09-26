@@ -2,38 +2,39 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V1"
+MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V2"
 
-OLD = """    @discardableResult
-    public func getAuthenticatedSession() async throws -> ALTAppleAPISession {
-        return try await TaskChainCoalescer.shared.coalesce(key: "apple_auth_session") {
-            guard let adsid = self.adsid,                           // directory services id
-                  let xcodeToken = self.xcodeToken else             // xcode token
-            {
-                debugLog("[AuthManager] No stored tokens found.")
-                throw OperationError.notAuthenticated
-            }
-            let anisetteData = try await AnisetteProvider.fetch()   // one time pass
-            let xcodeVersion = await AnisetteConfigManager.shared.resolvedXcodeVersion()
-            
-            let session = ALTAppleAPISession(
-                dsid: adsid,
-                authToken: xcodeToken,
-                anisetteData: anisetteData,
-                xcodeVersion: xcodeVersion
-            )
-            self.session = session
-            return session
-        }
-    }
-"""
+def fail(message: str) -> None:
+    raise SystemExit("patch_auth_session_recovery: " + message)
 
-NEW = """    @discardableResult
+def main() -> None:
+    if len(sys.argv) != 2:
+        fail("usage: patch_auth_session_recovery.py <sidestore-root>")
+
+    root = Path(sys.argv[1]).resolve()
+    path = root / "SideStore/Core/Auth/AuthManager.swift"
+    if not path.exists():
+        fail(f"missing AuthManager.swift: {path}")
+
+    text = path.read_text(encoding="utf-8")
+    if MARKER in text:
+        print("Apple API session recovery V2: already patched")
+        return
+
+    start = text.find("    @discardableResult\n    public func getAuthenticatedSession() async throws -> ALTAppleAPISession {")
+    if start < 0:
+        fail("getAuthenticatedSession anchor not found")
+
+    end = text.find("\n    public func getAuthenticatedTeam()", start)
+    if end < 0:
+        fail("getAuthenticatedTeam anchor not found")
+
+    replacement = r'''    // DPORT_AUTH_SESSION_RECOVERY_IOS27_V2
+    @discardableResult
     public func getAuthenticatedSession() async throws -> ALTAppleAPISession {
         return try await TaskChainCoalescer.shared.coalesce(key: "apple_auth_session") {
             guard let adsid = self.adsid,
-                  let xcodeToken = self.xcodeToken else
-            {
+                  let xcodeToken = self.xcodeToken else {
                 debugLog("[AuthManager] No stored tokens found.")
                 throw OperationError.notAuthenticated
             }
@@ -41,24 +42,35 @@ NEW = """    @discardableResult
             let anisetteData = try await AnisetteProvider.fetch()
             let xcodeVersion = await AnisetteConfigManager.shared.resolvedXcodeVersion()
 
-            let session = ALTAppleAPISession(
+            var session = ALTAppleAPISession(
                 dsid: adsid,
                 authToken: xcodeToken,
                 anisetteData: anisetteData,
                 xcodeVersion: xcodeVersion
             )
 
-            // iOS 27 AppIntent/background execution can start in a fresh
-            // process with a stale cached Apple API session token. Validate
-            // the token once before handing it to refresh/signing operations.
+            // A token can pass the account endpoint while still being rejected by
+            // Developer Services with result code 1100. Validate against the same
+            // Developer Services endpoint used by refresh before returning it.
             do {
-                _ = try await ALTAppleAPI.shared.fetchAccount(session: session)
+                let accountInfo = try await DatabaseManager.shared.persistentContainer.performBackgroundTask { context -> ALTAccount in
+                    guard let dbAccount = DatabaseManager.shared.activeAccount(in: context) else {
+                        throw OperationError.notAuthenticated
+                    }
+                    return ALTAccount(
+                        appleID: dbAccount.appleID,
+                        identifier: dbAccount.identifier
+                    )
+                }
+
+                _ = try await ALTAppleAPI.shared.fetchTeams(for: accountInfo, session: session)
                 self.session = session
-                debugLog("[AuthManager] Apple API session validation: PASS")
+                debugLog("[AuthManager] Developer Services session validation: PASS")
                 return session
             } catch {
+                let nsError = error as NSError
                 let message = error.localizedDescription.lowercased()
-                let isExpired = message.contains("1100")
+                let isExpired = nsError.code == 1100
                     || message.contains("session has expired")
                     || message.contains("please log in")
                     || message.contains("lnperrorcodelocalizedstringresource")
@@ -66,61 +78,62 @@ NEW = """    @discardableResult
                 guard isExpired,
                       let appleID = self.currentAppleID,
                       let password = self.password,
-                      !password.isEmpty else
-                {
-                    debugLog("[AuthManager] Apple API session validation failed: \(error)")
+                      !password.isEmpty else {
+                    debugLog("[AuthManager] Developer Services validation failed: \(error)")
                     throw error
                 }
 
-                debugLog("[AuthManager] Apple API session expired; re-authenticating before refresh.")
+                debugLog("[AuthManager] Developer Services session expired (1100); performing fresh Apple sign-in.")
 
                 let freshAnisette = try await AnisetteProvider.fetch()
                 let freshXcodeVersion = await AnisetteConfigManager.shared.resolvedXcodeVersion()
-                let (_, freshSession) = try await self.signIn(
+
+                let (_, freshSession) = try await self.portalProxy.signIn(
                     appleID: appleID,
                     password: password,
                     anisetteData: freshAnisette,
                     xcodeVersion: freshXcodeVersion,
+                    accountRepairHandler: DeveloperPortal.defaultAccountRepairHandler,
                     verificationHandler: nil
                 )
 
                 self.adsid = freshSession.dsid
                 self.xcodeToken = freshSession.authToken
+                session = freshSession
                 self.session = freshSession
-                debugLog("[AuthManager] Apple API session re-authentication: PASS")
+
+                // Verify the newly issued token against Developer Services too.
+                let accountInfo = try await DatabaseManager.shared.persistentContainer.performBackgroundTask { context -> ALTAccount in
+                    guard let dbAccount = DatabaseManager.shared.activeAccount(in: context) else {
+                        throw OperationError.notAuthenticated
+                    }
+                    return ALTAccount(
+                        appleID: dbAccount.appleID,
+                        identifier: dbAccount.identifier
+                    )
+                }
+                _ = try await ALTAppleAPI.shared.fetchTeams(for: accountInfo, session: freshSession)
+
+                debugLog("[AuthManager] Fresh Developer Services session validation: PASS")
                 return freshSession
             }
         }
     }
-"""
-def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: patch_auth_session_recovery.py <sidestore-root>")
-    root = Path(sys.argv[1]).resolve()
-    path = root / "SideStore/Core/Auth/AuthManager.swift"
-    text = path.read_text(encoding="utf-8")
-    if MARKER in text:
-        print("already patched:", MARKER)
-        return
-    if OLD not in text:
-        raise SystemExit("expected AuthManager.getAuthenticatedSession anchor not found")
-    text = text.replace(
-        OLD,
-        "// " + MARKER + " — validate/re-authenticate stale Apple API sessions\n" + NEW,
-        1,
-    )
+'''
+    text = text[:start] + replacement + text[end:]
+
     path.write_text(text, encoding="utf-8")
     verify = path.read_text(encoding="utf-8")
     for required in (
         MARKER,
-        "Apple API session validation",
-        "Apple API session expired; re-authenticating",
-        "ALTAppleAPI.shared.fetchAccount(session: session)",
-        "self.signIn(",
+        "ALTAppleAPI.shared.fetchTeams(for: accountInfo, session: session)",
+        "Developer Services session expired (1100)",
+        "self.portalProxy.signIn(",
+        "Fresh Developer Services session validation: PASS",
     ):
         if required not in verify:
-            raise SystemExit("verification failed: " + required)
-    print("Apple API session recovery patch: PASS")
+            fail("verification missing: " + required)
+    print("Apple API session recovery V2: PASS")
 
 if __name__ == "__main__":
     main()

@@ -221,9 +221,6 @@ jobs:
           # SideStore 0.7.0+ already contains the upstream refresh pipeline used
           # by manual refresh. Do not require legacy V30 diagnostic markers.
           grep -Fq 'AppManager.shared.refresh' "$SIDE/SideStore/Core/Operations/StandaloneOperations/BackgroundRefreshAppsOperation.swift"
-          grep -Fq "AutomaticRefreshHistory" "$SIDE/AltStore/Managing Apps/AppManager.swift"
-          grep -Fq "SIDESTORE_SIGN_PASS" "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
-          grep -Fq "SELF_REFRESH_COMPLETE" "$SIDE/AltStore/AppDelegate.swift"
           # SideStore 0.7.0 moved scheduling out of SceneDelegate; background automation shim above is the authoritative check.
 
           git -C "$MUX" diff --check

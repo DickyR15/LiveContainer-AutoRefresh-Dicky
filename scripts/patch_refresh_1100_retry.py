@@ -18,7 +18,7 @@ def main() -> None:
 
     text = path.read_text(encoding="utf-8")
     if MARKER in text:
-        print("Refresh 1100 retry V1: already patched")
+        print("Refresh 1100 retry V2: already patched")
         return
 
     old = """        actualGroup.activeTask = Task.detached {
@@ -33,7 +33,7 @@ def main() -> None:
 """
     new = """        actualGroup.activeTask = Task.detached {
             do {
-                // DPORT_REFRESH_1100_RETRY_V1
+                // DPORT_REFRESH_1100_RETRY_V2
                 do {
                     try await AuthManager.shared.getAuthenticatedSession()
                     try await self.pipelineRunner.perform(installedApps.map { .refresh($0) }, handler: pipelineHandler, group: actualGroup)
@@ -79,7 +79,7 @@ def main() -> None:
         if required not in verify:
             fail("verification missing: " + required)
 
-    print("Refresh 1100 retry V1: PASS")
+    print("Refresh 1100 retry V2: PASS")
 
 if __name__ == "__main__":
     main()

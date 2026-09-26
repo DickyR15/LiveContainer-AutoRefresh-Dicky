@@ -133,6 +133,7 @@ jobs:
           # Apple API session token. Validate the token and transparently
           # re-authenticate from the user's stored SideStore credentials.
           python3 builder/scripts/patch_auth_session_recovery.py work/EmbeddedSideStore
+          python3 builder/scripts/patch_refresh_1100_retry.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # iOS 27: open SideStore before executing the existing refresh action.
           # Do not alter RefreshAllAppsIntent or introduce unsupported
@@ -149,6 +150,8 @@ jobs:
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/App/LiveContainerAutoRefreshAlarm.swift
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
+          swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Auth/AuthManager.swift"
+          swiftc -frontend -parse "work/EmbeddedSideStore/AltStore/Managing Apps/AppManager.swift"
 
       - name: Verify final Taiwan Traditional Chinese AutoRefresh source
         shell: bash

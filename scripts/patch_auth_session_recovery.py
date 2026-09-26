@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V3"
+MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V4"
 
 def fail(message: str) -> None:
     raise SystemExit("patch_auth_session_recovery: " + message)
@@ -18,7 +18,7 @@ def main() -> None:
 
     text = path.read_text(encoding="utf-8")
     if MARKER in text:
-        print("Apple API session recovery V2: already patched")
+        print("Apple API session recovery V4: already patched")
         return
 
     start = text.find("    @discardableResult\n    public func getAuthenticatedSession() async throws -> ALTAppleAPISession {")
@@ -133,7 +133,7 @@ def main() -> None:
     ):
         if required not in verify:
             fail("verification missing: " + required)
-    print("Apple API session recovery V2: PASS")
+    print("Apple API session recovery V4: PASS")
 
 if __name__ == "__main__":
     main()

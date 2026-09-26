@@ -224,7 +224,7 @@ jobs:
           grep -Fq "AutomaticRefreshHistory" "$SIDE/AltStore/Managing Apps/AppManager.swift"
           grep -Fq "SIDESTORE_SIGN_PASS" "$SIDE/SideStore/Core/Operations/PipelineOperations/ResignAppOperation.swift"
           grep -Fq "SELF_REFRESH_COMPLETE" "$SIDE/AltStore/AppDelegate.swift"
-          grep -Fq "scheduleAutomaticRefresh" "$SIDE/AltStore/SceneDelegate.swift"
+          # SideStore 0.7.0 moved scheduling out of SceneDelegate; background automation shim above is the authoritative check.
 
           git -C "$MUX" diff --check
           swiftc -frontend -parse "$MUX/DeviceGateway/idevice/IdeviceGateway.swift"

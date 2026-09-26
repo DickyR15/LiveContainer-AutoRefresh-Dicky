@@ -129,6 +129,10 @@ jobs:
           # iOS 27: avoid the old PrivateIntentRunner execution path for the
           # refresh intent when SideStore is loaded in LiveProcess.
           python3 builder/scripts/patch_ios27_refresh_execution.py work/LiveContainer
+          # iOS 27 AppIntent/background execution may start with an expired
+          # Apple API session token. Validate the token and transparently
+          # re-authenticate from the user's stored SideStore credentials.
+          python3 builder/scripts/patch_auth_session_recovery.py work/EmbeddedSideStore
           python3 builder/patch_embedded_sidestore_startup.py work/LiveContainer work/EmbeddedSideStore
           # iOS 27: open SideStore before executing the existing refresh action.
           # Do not alter RefreshAllAppsIntent or introduce unsupported

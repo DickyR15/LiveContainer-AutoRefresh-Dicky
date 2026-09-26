@@ -18,7 +18,7 @@ def main() -> None:
 
     text = path.read_text(encoding="utf-8")
     if MARKER in text:
-        print("Apple API session recovery V4: already patched")
+        print("Apple API session recovery V5: already patched")
         return
 
     start = text.find("    @discardableResult\n    public func getAuthenticatedSession() async throws -> ALTAppleAPISession {")
@@ -29,7 +29,7 @@ def main() -> None:
     if end < 0:
         fail("getAuthenticatedTeam anchor not found")
 
-    replacement = r'''    // DPORT_AUTH_SESSION_RECOVERY_IOS27_V4
+    replacement = r'''    // DPORT_AUTH_SESSION_RECOVERY_IOS27_V5
     @discardableResult
     public func getAuthenticatedSession() async throws -> ALTAppleAPISession {
         return try await TaskChainCoalescer.shared.coalesce(key: "apple_auth_session") {
@@ -138,7 +138,7 @@ def main() -> None:
     ):
         if required not in verify:
             fail("verification missing: " + required)
-    print("Apple API session recovery V4: PASS")
+    print("Apple API session recovery V5: PASS")
 
 if __name__ == "__main__":
     main()

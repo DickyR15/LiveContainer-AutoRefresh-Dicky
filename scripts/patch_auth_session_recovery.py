@@ -223,7 +223,11 @@ def patch_proxy(root: Path) -> None:
     needle = "let session = try await self.getSession()"
 
     method_ranges = []
-    cursor = 0
+    # Start scanning at the first real public API method. The recovery helper
+    # itself also contains getSession(), so it must never be wrapped recursively.
+    cursor = base.find(anchor)
+    if cursor < 0:
+        fail("fetchTeams anchor disappeared before API method scan")
     while True:
         at = base.find(needle, cursor)
         if at < 0:

@@ -2,6 +2,8 @@ name: Build LiveContainer 3.8.10 AutoRefresh
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 

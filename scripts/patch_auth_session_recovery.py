@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V4"
+MARKER = "DPORT_AUTH_SESSION_RECOVERY_IOS27_V5"
 
 def fail(message: str) -> None:
     raise SystemExit("patch_auth_session_recovery: " + message)
@@ -84,6 +84,11 @@ def main() -> None:
                 }
 
                 debugLog("[AuthManager] Developer Services session expired (1100); performing fresh Apple sign-in.")
+
+                // Apple can invalidate the ADI/Anisette state independently of the stored Xcode token.
+                AnisetteDataManager.shared.clearCache()
+                AnisetteConfigManager.shared.anisetteAdiBlob = nil
+                debugLog("[AuthManager] Cleared cached Anisette/adi.pb state after Developer Services 1100.")
 
                 let freshAnisette = try await AnisetteProvider.fetch()
                 let freshXcodeVersion = await AnisetteConfigManager.shared.resolvedXcodeVersion()

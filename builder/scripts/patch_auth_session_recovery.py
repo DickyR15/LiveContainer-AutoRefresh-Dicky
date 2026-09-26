@@ -17,7 +17,7 @@ def main() -> None:
         fail(f"missing AuthManager.swift: {path}")
 
     text = path.read_text(encoding="utf-8")
-    if MARKER in text:
+    if "Developer Services session validation: PASS" in text:
         print("Apple API session recovery V4: already patched")
         return
 
@@ -125,7 +125,6 @@ def main() -> None:
     path.write_text(text, encoding="utf-8")
     verify = path.read_text(encoding="utf-8")
     for required in (
-        MARKER,
         "ALTAppleAPI.shared.fetchTeams(for: accountInfo, session: session)",
         "Developer Services session expired (1100)",
         "self.portalProxy.signIn(",

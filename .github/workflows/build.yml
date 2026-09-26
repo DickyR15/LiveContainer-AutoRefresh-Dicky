@@ -153,7 +153,7 @@ jobs:
           plutil -lint work/LiveContainer/LiveContainer/Info.plist
           swiftc -frontend -parse work/LiveContainer/LiveContainerSwiftUI/Views/Settings/LCEmbeddedSideStoreRefreshView.swift
           swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
-          grep -Fq 'DPORT_IOS27_ODA_FIRST_V1' "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
+          grep -Fq 'DPORT_IOS27_ODA_FIRST_V2_REVERTED' "work/EmbeddedSideStore/SideStore/Core/Anisette/AnisetteProvider.swift"
           swiftc -frontend -parse "work/EmbeddedSideStore/SideStore/Core/Auth/AuthManager.swift"
           swiftc -frontend -parse "work/EmbeddedSideStore/AltStore/Managing Apps/AppManager.swift"
 

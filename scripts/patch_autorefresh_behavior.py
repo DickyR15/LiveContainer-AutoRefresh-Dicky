@@ -5,38 +5,14 @@ ROOT = Path(__file__).resolve().parent.parent
 T = ROOT / "templates"
 
 def patch_ios27_intent_runner(root: Path) -> None:
-    """Open SideStore before the iOS 27 automatic refresh action."""
+    """Preserve the upstream SideStore AppIntent executor on iOS 27."""
     path = root / "SideStoreSupport/PrivateIntentRunner.m"
     if not path.exists():
         raise SystemExit(f"missing PrivateIntentRunner source: {path}")
     text = path.read_text(encoding="utf-8")
     if "IOS27_OPEN_APP_BEFORE_REFRESH" in text:
-        return
-
-    old = '''    LNAction* action = [[actionClass alloc] initWithIdentifier:identifier
-                                                    mangledTypeName:mangledTypeName
-                                                      openAppWhenRun:NO
-                                                         parameters:@[]];
-'''
-    new = '''    BOOL openAppBeforeRefresh = NO;
-    if (@available(iOS 27.0, *)) {
-        // iOS 27: initialize SideStore before Refresh All Apps.
-        // This mirrors the known-good sidestore:// -> refresh sequence.
-        openAppBeforeRefresh = YES; // IOS27_OPEN_APP_BEFORE_REFRESH
-    }
-
-    LNAction* action = [[actionClass alloc] initWithIdentifier:identifier
-                                                    mangledTypeName:mangledTypeName
-                                                      openAppWhenRun:openAppBeforeRefresh
-                                                         parameters:@[]];
-'''
-    if text.count(old) != 1:
-        raise SystemExit(f"iOS27 open-app patch: expected one anchor, found {text.count(old)}")
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-    verify = path.read_text(encoding="utf-8")
-    for required in ("IOS27_OPEN_APP_BEFORE_REFRESH", "openAppWhenRun:openAppBeforeRefresh", "openAppBeforeRefresh = YES"):
-        if required not in verify:
-            raise SystemExit("iOS27 open-app verification failed: " + required)
+        raise SystemExit("stale forced openAppWhenRun patch is present; use a clean LiveContainer checkout")
+    print("iOS 27 PrivateIntentRunner upstream path preserved: PASS")
 
 
 def replace_once(path, old, new, label):

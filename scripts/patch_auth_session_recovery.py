@@ -29,7 +29,7 @@ def main() -> None:
     if end < 0:
         fail("getAuthenticatedTeam anchor not found")
 
-    replacement = r'''    // DPORT_AUTH_SESSION_RECOVERY_IOS27_V2
+    replacement = r'''    // DPORT_AUTH_SESSION_RECOVERY_IOS27_V4
     @discardableResult
     public func getAuthenticatedSession() async throws -> ALTAppleAPISession {
         return try await TaskChainCoalescer.shared.coalesce(key: "apple_auth_session") {

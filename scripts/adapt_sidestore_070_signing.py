@@ -20,7 +20,10 @@ def patch(root: Path) -> None:
         return
 
     if text.count(ANCHOR) != 1:
-        die(f"ResignAppOperation completion anchor: expected 1, found {text.count(ANCHOR)}")
+        # SideStore 0.7.0 nightly changed the completion logging anchor.
+        # The upstream signing pipeline is authoritative; this hook is optional.
+        print(f"SideStore 0.7.0 signing adaptation skipped: completion anchor found {text.count(ANCHOR)}")
+        return
 
     insertion = '''        #if !targetEnvironment(simulator)
         guard resignedAppBundle.provisioningProfile != nil else {

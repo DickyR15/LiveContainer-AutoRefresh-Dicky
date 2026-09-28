@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-MARKER = "IOS27_DIRECT_REFRESH_INTENT"
+MARKER = "IOS27_DIRECT_REFRESH_INTENT_V2_REVERTED"
 
 def fail(message: str) -> None:
     raise SystemExit("patch_ios27_refresh_execution: " + message)
@@ -17,69 +17,37 @@ def main() -> None:
         fail(f"missing SideStoreClient.swift: {path}")
 
     text = path.read_text(encoding="utf-8")
+
+    # IMPORTANT: Do not call RefreshAllAppsIntent.perform() directly on iOS 27.
+    # That bypasses the AppIntents execution context. RefreshAllAppsIntent uses
+    # ForegroundContinuableIntent and may need requestToContinueInForeground();
+    # invoking perform() directly can surface AppIntents.AppIntentError(code: 1).
+    # Keep the upstream PrivateIntentRunner path, which supplies the proper
+    # AppIntent execution context.
+    if "PrivateIntentRunner.run(" not in text:
+        fail("upstream PrivateIntentRunner path is missing")
+
+    if "callRefreshIntent(mangledTypeName: mangledTypeName)" in text and "if #available(iOS 27.0, *)" in text:
+        fail("obsolete direct perform() iOS 27 workaround is present")
+
     if MARKER in text:
-        print("iOS 27 direct refresh execution: already patched")
+        print("iOS 27 refresh execution: upstream AppIntent runner preserved")
         return
 
-    start = text.find("    // call this when no IntentContext exists (when sidestore is loaded in LiveProcess)")
-    if start < 0:
-        fail("callRefreshIntent2 anchor not found")
-
-    end = text.find("\n    }\n}", start)
-    if end < 0:
-        fail("callRefreshIntent2 end anchor not found")
-    end += len("\n    }")
-
-    old = text[start:end]
-    if "func callRefreshIntent2(" not in old:
-        fail("callRefreshIntent2 function not found in selected block")
-    if "PrivateIntentRunner.run(" not in old:
-        fail("expected upstream PrivateIntentRunner path not found")
-
-    new = '''    // IOS27_DIRECT_REFRESH_INTENT
-    // iOS 27: reuse SideStore's existing in-process AppIntent.perform() path.
-    // That is the same path used when SideStore already has an IntentContext,
-    // while the original LiveProcess path goes through PrivateIntentRunner.
-    func callRefreshIntent2(identifier: String, mangledTypeName: String, progressCallback: (Progress)->Void ) async throws {
-        if #available(iOS 27.0, *) {
-            try await callRefreshIntent(mangledTypeName: mangledTypeName)
-            return
-        }
-
-        try await withUnsafeThrowingContinuation { (c: UnsafeContinuation<(), any Error>) in
-            let parent = PrivateIntentRunner.run(
-                        identifier: identifier,
-                        mangledTypeName: mangledTypeName
-                    ) { result, error in
-                        print("performAction result=\\(String(describing: result)), " +
-                              "error=\\(String(describing: error))")
-                        if let error {
-                            c.resume(throwing: error)
-                        } else {
-                            c.resume()
-                        }
-                    }
-            if let parent {
-                progressCallback(parent)
-            }
-        }
-    }'''
-
-    path.write_text(text[:start] + new + text[end:], encoding="utf-8")
+    # No source rewrite is required. Add a harmless audit marker so CI can
+    # verify that this stage intentionally preserves the upstream execution
+    # path rather than applying the broken direct-perform workaround.
+    path.write_text(
+        "// " + MARKER + " — preserve PrivateIntentRunner AppIntent context\n" + text,
+        encoding="utf-8",
+    )
 
     verify = path.read_text(encoding="utf-8")
-    required = [
-        MARKER,
-        "if #available(iOS 27.0, *)",
-        "try await callRefreshIntent(mangledTypeName: mangledTypeName)",
-        "PrivateIntentRunner.run("
-    ]
-    missing = [item for item in required if item not in verify]
-    if missing:
-        fail("verification missing: " + ", ".join(missing))
+    for required in (MARKER, "PrivateIntentRunner.run("):
+        if required not in verify:
+            fail("verification missing: " + required)
 
-    print("iOS 27 direct refresh execution: PASS")
-    print(path)
+    print("iOS 27 refresh execution: upstream PrivateIntentRunner preserved")
 
 if __name__ == "__main__":
     main()

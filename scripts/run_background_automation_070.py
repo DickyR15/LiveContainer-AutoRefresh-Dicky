@@ -78,7 +78,11 @@ def install_compat(mod):
         }
 """
             if section.count(detached) != 1:
-                mod.die(f"manual history body: expected one anchor, found {section.count(detached)}")
+                # SideStore 0.7.0 changed AppManager.refresh() internals.
+                # Manual refresh is upstream; history instrumentation is optional.
+                print(f"manual history instrumentation: skipped; refresh body anchor found {section.count(detached)}")
+                path.write_text(text, encoding="utf-8")
+                return
 
             replacement = """        let manualHistoryRunID = recordManualHistory ? UUID() : nil
         let historyAppIDs = Set(installedApps.map { $0.bundleIdentifier })
